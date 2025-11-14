@@ -40,7 +40,6 @@ static void placeCameraBehindBox(PerspectiveCamera& cam,
                                  float distBack = 6.f,
                                  float height = 3.f) {
 
-    // camera position a bit behind the box, in direction of current yaw
     float backX = std::sin(yawRadians) * distBack;
     float backZ = std::cos(yawRadians) * distBack;
 
@@ -64,35 +63,27 @@ public:
           input_(input),
           start_(std::chrono::steady_clock::now()) {
 
-        // initial camera placement
         placeCameraBehindBox(*camera_, player_->position, yaw_);
     }
 
     void update() {
-        float t = std::chrono::duration<float>(
-                std::chrono::steady_clock::now() - start_).count();
-
-        (void)t;
-
         float dt = 1.f / 60.f;
 
-        // rotate left/right
-        const float turnSpeed = 1.8f; // radians/sec
+        const float turnSpeed = 1.8f;
         if (input_->left)  yaw_ += turnSpeed * dt;
         if (input_->right) yaw_ -= turnSpeed * dt;
 
-        // forward/backward
-        const float moveSpeed = 4.f; // units/sec
-        float forwardDirX = std::sin(yaw_);
-        float forwardDirZ = std::cos(yaw_);
+        const float moveSpeed = 4.f;
+        float dirX = std::sin(yaw_);
+        float dirZ = std::cos(yaw_);
 
         if (input_->forward) {
-            player_->position.x += forwardDirX * moveSpeed * dt;
-            player_->position.z += forwardDirZ * moveSpeed * dt;
+            player_->position.x += dirX * moveSpeed * dt;
+            player_->position.z += dirZ * moveSpeed * dt;
         }
         if (input_->backward) {
-            player_->position.x -= forwardDirX * moveSpeed * dt;
-            player_->position.z -= forwardDirZ * moveSpeed * dt;
+            player_->position.x -= dirX * moveSpeed * dt;
+            player_->position.z -= dirZ * moveSpeed * dt;
         }
 
         placeCameraBehindBox(*camera_, player_->position, yaw_);
@@ -107,14 +98,13 @@ private:
     PerspectiveCamera* camera_;
     Object3D* player_;
     DriveInput* input_;
-
     float yaw_{0.f};
     std::chrono::steady_clock::time_point start_;
 };
 
 int main() {
 
-    Canvas canvas("Bilsimulator");
+    Canvas canvas("threepp driving box");
     GLRenderer renderer(canvas.size());
 
     Scene scene;
@@ -122,13 +112,17 @@ int main() {
 
     PerspectiveCamera camera(60, canvas.aspect(), 0.1f, 1000.f);
 
-
     auto planeGeo = PlaneGeometry::create(200, 200);
     auto planeMat = MeshPhongMaterial::create();
     planeMat->color = Color::forestgreen;
     auto plane = Mesh::create(planeGeo, planeMat);
-    plane->rotation.x = -math::PI / 2.f; // lay it flat
+    plane->rotation.x = -math::PI / 2.f;
     scene.add(plane);
+
+
+    auto grid = GridHelper::create(200, 200, Color::black, Color::darkgray);
+    grid->position.y = 0.01f; // lift slightly so it doesn’t z-fight with plane
+    scene.add(grid);
 
     auto hemi = HemisphereLight::create(Color::white, Color::gray, 1.0f);
     scene.add(hemi);
@@ -136,11 +130,11 @@ int main() {
     dirLight->position.set(5, 10, 7);
     scene.add(dirLight);
 
-    auto boxGeo = BoxGeometry::create(1, 1, 2); // a “car-ish” box
+    auto boxGeo = BoxGeometry::create(1, 1, 2);
     auto boxMat = MeshPhongMaterial::create();
     boxMat->color = Color::red;
     auto player = Mesh::create(boxGeo, boxMat);
-    player->position.y = 0.5f; // sit on plane
+    player->position.y = 0.5f;
     scene.add(player);
 
     DriveInput input;
@@ -149,7 +143,6 @@ int main() {
     Game game(&canvas, &renderer, &scene, &camera, player.get(), &input);
 
     canvas.animate([&] {
-           game.update();
-       });
-    return 0;
+        game.update();
+    });
 }
