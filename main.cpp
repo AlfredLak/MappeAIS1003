@@ -53,7 +53,7 @@ public:
          GLRenderer* renderer,
          Scene* scene,
          PerspectiveCamera* camera,
-         Object3D* player,
+         Mesh* player,
          DriveInput* input)
         : canvas_(canvas),
           renderer_(renderer),
@@ -67,7 +67,7 @@ public:
     }
 
     void update() {
-        float dt = 1.f / 60.f;
+        float dt = 1.f / 60.f; // fixed step
 
         const float turnSpeed = 1.8f;
         if (input_->left)  yaw_ += turnSpeed * dt;
@@ -86,6 +86,10 @@ public:
             player_->position.z -= dirZ * moveSpeed * dt;
         }
 
+        // 1) car faces the direction we're actually driving
+        player_->rotation.y = yaw_;
+
+        // 2) camera uses the SAME yaw → always same angle behind car
         placeCameraBehindBox(*camera_, player_->position, yaw_);
 
         renderer_->render(*scene_, *camera_);
@@ -96,7 +100,7 @@ private:
     GLRenderer* renderer_;
     Scene* scene_;
     PerspectiveCamera* camera_;
-    Object3D* player_;
+    Mesh* player_;
     DriveInput* input_;
     float yaw_{0.f};
     std::chrono::steady_clock::time_point start_;
@@ -119,9 +123,8 @@ int main() {
     plane->rotation.x = -math::PI / 2.f;
     scene.add(plane);
 
-
     auto grid = GridHelper::create(200, 200, Color::black, Color::darkgray);
-    grid->position.y = 0.01f; // lift slightly so it doesn’t z-fight with plane
+    grid->position.y = 0.01f;
     scene.add(grid);
 
     auto hemi = HemisphereLight::create(Color::white, Color::gray, 1.0f);
@@ -142,7 +145,7 @@ int main() {
 
     Game game(&canvas, &renderer, &scene, &camera, player.get(), &input);
 
-    canvas.animate([&] {
-        game.update();
-    });
+    canvas.animate(std::bind(&Game::update, &game));
+
+    return 0;
 }
