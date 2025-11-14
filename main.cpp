@@ -3,6 +3,7 @@
 #include <functional>
 #include <chrono>
 #include <threepp/threepp.hpp>
+#include <threepp/loaders/AssimpLoader.hpp>
 
 using namespace threepp;
 
@@ -53,7 +54,7 @@ public:
          GLRenderer* renderer,
          Scene* scene,
          PerspectiveCamera* camera,
-         Mesh* player,
+         Object3D* player,
          DriveInput* input)
         : canvas_(canvas),
           renderer_(renderer),
@@ -67,29 +68,45 @@ public:
     }
 
     void update() {
-        float dt = 1.f / 60.f; // fixed step
+        const float dt = 1.f / 60.f;
 
         const float turnSpeed = 1.8f;
         if (input_->left)  yaw_ += turnSpeed * dt;
         if (input_->right) yaw_ -= turnSpeed * dt;
 
-        const float moveSpeed = 4.f;
-        float dirX = std::sin(yaw_);
-        float dirZ = std::cos(yaw_);
+        const float accelForward  = 5.f;
+        const float accelBackward = 4.f;
+        const float drag          = 2.5f;
 
         if (input_->forward) {
-            player_->position.x += dirX * moveSpeed * dt;
-            player_->position.z += dirZ * moveSpeed * dt;
+            velocity_ += accelForward * dt;
         }
         if (input_->backward) {
-            player_->position.x -= dirX * moveSpeed * dt;
-            player_->position.z -= dirZ * moveSpeed * dt;
+            velocity_ -= accelBackward * dt;
         }
 
-        // 1) car faces the direction we're actually driving
+        if (!input_->forward && !input_->backward) {
+            if (velocity_ > 0.f) {
+                velocity_ -= drag * dt;
+                if (velocity_ < 0.f) velocity_ = 0.f;
+            } else if (velocity_ < 0.f) {
+                velocity_ += drag * dt;
+                if (velocity_ > 0.f) velocity_ = 0.f;
+            }
+        }
+
+        const float maxForward  = 8.f;
+        const float maxBackward = -5.f; // negative
+        if (velocity_ > maxForward)  velocity_ = maxForward;
+        if (velocity_ < maxBackward) velocity_ = maxBackward;
+
+        float dirX = std::sin(yaw_);
+        float dirZ = std::cos(yaw_);
+        player_->position.x += dirX * velocity_ * dt;
+        player_->position.z += dirZ * velocity_ * dt;
+
         player_->rotation.y = yaw_;
 
-        // 2) camera uses the SAME yaw → always same angle behind car
         placeCameraBehindBox(*camera_, player_->position, yaw_);
 
         renderer_->render(*scene_, *camera_);
@@ -100,15 +117,16 @@ private:
     GLRenderer* renderer_;
     Scene* scene_;
     PerspectiveCamera* camera_;
-    Mesh* player_;
+    Object3D* player_;
     DriveInput* input_;
     float yaw_{0.f};
+    float velocity_{0.f};
     std::chrono::steady_clock::time_point start_;
 };
 
 int main() {
 
-    Canvas canvas("threepp driving box");
+    Canvas canvas("threepp driving car");
     GLRenderer renderer(canvas.size());
 
     Scene scene;
@@ -133,19 +151,21 @@ int main() {
     dirLight->position.set(5, 10, 7);
     scene.add(dirLight);
 
-    auto boxGeo = BoxGeometry::create(1, 1, 2);
-    auto boxMat = MeshPhongMaterial::create();
-    boxMat->color = Color::red;
-    auto player = Mesh::create(boxGeo, boxMat);
-    player->position.y = 0.5f;
-    scene.add(player);
+    AssimpLoader assimp;
+    auto car = assimp.load("suv_model.glb");
+    car->position.y = 0.0f;
+    scene.add(car);
+
 
     DriveInput input;
     canvas.addKeyListener(input);
 
-    Game game(&canvas, &renderer, &scene, &camera, player.get(), &input);
+    Game game(&canvas, &renderer, &scene, &camera, car.get(), &input);
 
-    canvas.animate(std::bind(&Game::update, &game));
+    canvas.animate([&] {
+    game.update();
+    }
+    );
 
     return 0;
 }
