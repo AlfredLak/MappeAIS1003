@@ -31,3 +31,13 @@ target_link_libraries(MinBil
 
 file(COPY ${CMAKE_SOURCE_DIR}/suv_model.glb
         DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+set(RUNTIME_DLL_DIR "${CMAKE_CURRENT_BINARY_DIR}/bin")
+file(GLOB RUNTIME_DLLS "${RUNTIME_DLL_DIR}/*.dll")
+
+foreach(dll ${RUNTIME_DLLS})
+    add_custom_command(TARGET MinBil POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${dll}"
+            $<TARGET_FILE_DIR:MinBil>)
+endforeach()
