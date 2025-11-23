@@ -3,6 +3,7 @@
 #include <functional>
 #include <chrono>
 #include <random>
+#include <memory>
 #include <threepp/threepp.hpp>
 #include <threepp/loaders/AssimpLoader.hpp>
 
@@ -15,7 +16,8 @@ public:
     bool backward{false};
     bool left{false};
     bool right{false};
-    bool view{false}; // V
+    bool view{false}; // V toggles side camera
+    bool goFullscreenEdge{false}; // we’ll toggle fullscreen once at start
 
     void onKeyPressed(KeyEvent evt) override {
         switch (evt.key) {
@@ -119,6 +121,7 @@ public:
             if (!pu.isActive()) continue;
             auto* obj = pu.object();
             if (!obj) continue;
+
             float dx = p.x - obj->position.x;
             float dz = p.z - obj->position.z;
             if (dx*dx + dz*dz < 1.5f * 1.5f) {
@@ -127,6 +130,7 @@ public:
             }
         }
     }
+
 private:
     std::vector<PowerUp> powerups_;
 };
@@ -157,9 +161,18 @@ public:
     void update() {
         const float dt = 1.f / 60.f;
 
-        // steering
-        if (input_->left)  yaw_ += turnSpeed_ * dt;
-        if (input_->right) yaw_ -= turnSpeed_ * dt;
+        float targetTurn = 0.f;
+        if (input_->left)  targetTurn += maxTurnRate_;
+        if (input_->right) targetTurn -= maxTurnRate_;
+
+        float dv = targetTurn - turnVel_;
+        float accel = (std::abs(targetTurn) > 0.f) ? turnAccel_ : turnFriction_;
+        float step = accel * dt;
+        if (dv >  step) turnVel_ += step;
+        else if (dv < -step) turnVel_ -= step;
+        else turnVel_ = targetTurn;
+
+        yaw_ += turnVel_ * dt;
 
         // accel/decel
         if (input_->forward)  velocity_ += accelForward_ * dt;
@@ -198,7 +211,7 @@ public:
             }
         }
 
-        // let power-ups do their thing
+        // power-ups
         if (powerups_) {
             powerups_->update(*this, player_);
         }
@@ -218,21 +231,14 @@ public:
         renderer_->render(*scene_, *camera_);
     }
 
-    // ---- called by PowerUp::apply ----
     void growCar(float factor) {
         player_->scale.multiplyScalar(factor);
     }
 
     void makeFaster(float speedFactor, float accelFactor) {
-        maxForward_  *= speedFactor;
+        maxForward_   *= speedFactor;
         accelForward_ *= accelFactor;
     }
-
-    /*void makeSlower(float speedFactor, float accelFactor) {
-        maxForward_  *= speedFactor;
-        accelForward_ *= accelFactor;
-        if (velocity_ > maxForward_) velocity_ = maxForward_;
-    }*/
 
 private:
     Canvas* canvas_;
@@ -246,8 +252,13 @@ private:
     float yaw_{0.f};
     float velocity_{0.f};
 
+    // steering dynamics
+    float turnVel_{0.f};
+    float maxTurnRate_{1.8f};
+    float turnAccel_{6.0f};
+    float turnFriction_{8.0f};
+
     // tunables
-    float turnSpeed_{1.8f};
     float accelForward_{5.f};
     float accelBackward_{4.f};
     float drag_{2.5f};
@@ -261,7 +272,6 @@ private:
     std::chrono::steady_clock::time_point start_;
 };
 
-// implement PowerUp::apply now that Game is defined
 void PowerUp::apply(Game& game) {
     switch (type_) {
         case Type::Grow:
@@ -271,7 +281,7 @@ void PowerUp::apply(Game& game) {
             game.makeFaster(1.35f, 1.3f);
             break;
         case Type::Shrink:
-            game.growCar(0.7f);
+            game.growCar(0.7f); // shrink by 30%
             break;
     }
 }
@@ -287,7 +297,7 @@ int main() {
 
     PerspectiveCamera camera(60, canvas.aspect(), 0.1f, 1000.f);
 
-    // big ground
+    // ground
     auto planeGeo = PlaneGeometry::create(2000, 2000);
     auto planeMat = MeshPhongMaterial::create();
     planeMat->color = Color::forestgreen;
@@ -314,13 +324,16 @@ int main() {
     car->position.y = 0.f;
     scene.add(car);
 
-    // power-ups (OO style)
+    // power-ups
     PowerUpManager puManager;
 
-    std::vector<std::string> puFiles = { "power_up1.glb", "power_up2.glb", "power_up3.glb" };
-
+    std::vector<std::string> puFiles = {
+        "power_up1.glb", // Grow
+        "power_up2.glb", // Faster
+        "power_up3.glb"  // Shrink
+    };
     std::mt19937 rng(static_cast<unsigned>(std::chrono::steady_clock::now().time_since_epoch().count()));
-    std::uniform_real_distribution<float> distXY(-950.f, 950.f); // near full 2000x2000 plane
+    std::uniform_real_distribution<float> distXY(-950.f, 950.f);
     std::uniform_int_distribution<int>   distType(0, 2);
 
     const int powerupCount = 120;
@@ -330,10 +343,9 @@ int main() {
         obj->position.set(distXY(rng), 0.f, distXY(rng));
         scene.add(obj);
 
-        PowerUp::Type type;
-        if (t == 0) type = PowerUp::Type::Grow;
-        else if (t == 1) type = PowerUp::Type::Faster;
-        else type = PowerUp::Type::Shrink; // was Slower
+        PowerUp::Type type = (t == 0) ? PowerUp::Type::Grow
+                             : (t == 1) ? PowerUp::Type::Faster
+                                        : PowerUp::Type::Shrink;
 
         puManager.add(std::move(obj), type);
     }
@@ -343,7 +355,18 @@ int main() {
 
     Game game(&canvas, &renderer, &scene, &camera, car.get(), &input, &puManager);
 
+    WindowSize lastSize = canvas.size();
+
+
+
     canvas.animate([&] {
+        WindowSize s = canvas.size();
+        if (s.width() != lastSize.width() || s.height() != lastSize.height()) {
+            renderer.setSize(s);
+            camera.aspect = static_cast<float>(s.width()) / static_cast<float>(s.height());
+            lastSize = s;
+        }
+
         game.update();
     });
 
