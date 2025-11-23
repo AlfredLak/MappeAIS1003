@@ -4,6 +4,7 @@ set(CMAKE_CXX_STANDARD 20)
 
 include(FetchContent)
 
+# 1) Fetch assimp
 FetchContent_DECLARE(
         assimp
         GIT_REPOSITORY https://github.com/assimp/assimp.git
@@ -11,10 +12,12 @@ FetchContent_DECLARE(
 )
 FetchContent_MakeAvailable(assimp)
 
+# 2) Tell threepp we want assimp BEFORE we fetch threepp
 set(THREEPP_ENABLE_ASSIMP ON)
 set(THREEPP_BUILD_TESTS OFF)
 set(THREEPP_BUILD_EXAMPLES OFF)
 
+# 3) Fetch threepp
 FetchContent_DECLARE(
         threepp
         GIT_REPOSITORY https://github.com/markaren/threepp.git
@@ -22,18 +25,23 @@ FetchContent_DECLARE(
 )
 FetchContent_MakeAvailable(threepp)
 
+# 4) Our executable
 add_executable(MinBil main.cpp)
 
+# 5) Link against threepp and assimp
 target_link_libraries(MinBil
         PUBLIC threepp::threepp
         PRIVATE assimp
 )
 
-file(COPY ${CMAKE_SOURCE_DIR}/suv_model.glb
-        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+# copy assets
+file(GLOB GLB_FILES "${CMAKE_SOURCE_DIR}/*.glb")
+file(COPY ${GLB_FILES} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
+# copy all DLLs from build/bin to the exe dir (works for Debug/Release)
 set(RUNTIME_DLL_DIR "${CMAKE_CURRENT_BINARY_DIR}/bin")
 file(GLOB RUNTIME_DLLS "${RUNTIME_DLL_DIR}/*.dll")
+
 
 foreach(dll ${RUNTIME_DLLS})
     add_custom_command(TARGET MinBil POST_BUILD
