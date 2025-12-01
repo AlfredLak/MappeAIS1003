@@ -38,6 +38,9 @@ target_link_libraries(MinBil
 file(GLOB GLB_FILES "${CMAKE_SOURCE_DIR}/*.glb")
 file(COPY ${GLB_FILES} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
+file(COPY ${CMAKE_SOURCE_DIR}/startscreen_test.png
+        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
 # copy all DLLs from build/bin to the exe dir (works for Debug/Release)
 set(RUNTIME_DLL_DIR "${CMAKE_CURRENT_BINARY_DIR}/bin")
 file(GLOB RUNTIME_DLLS "${RUNTIME_DLL_DIR}/*.dll")

@@ -9,30 +9,59 @@
 
 using namespace threepp;
 
-// ===== input =====
+// -------- input --------
 class DriveInput : public KeyListener {
 public:
     bool w{false}, s{false}, a{false}, d{false}, v{false}, space{false};
-    bool enter{false}, esc{false}, one{false}, two{false}, three{false}, r{false};
+    bool enter{false}, esc{false}, r{false};
+    bool one{false}, two{false}, three{false};
+
     void onKeyPressed(KeyEvent e) override {
-        if (e.key==Key::W) w=true; if (e.key==Key::S) s=true;
-        if (e.key==Key::A) a=true; if (e.key==Key::D) d=true;
-        if (e.key==Key::V) v=true; if (e.key==Key::SPACE) space=true;
-        if (e.key==Key::ENTER) enter=true; if (e.key==Key::ESCAPE) esc=true;
-        if (e.key==Key::KP_1) one=true; if (e.key==Key::KP_2) two=true; if (e.key==Key::KP_3) three=true;
-        if (e.key==Key::R) r=true;
+        switch (e.key) {
+            case Key::W: w = true; break;
+            case Key::S: s = true; break;
+            case Key::A: a = true; break;
+            case Key::D: d = true; break;
+            case Key::V: v = true; break;
+            case Key::SPACE: space = true; break;
+
+            case Key::ENTER: enter = true; break;
+            case Key::ESCAPE: esc = true; break;
+            case Key::R: r = true; break;
+
+            // top-row digits
+            case Key::NUM_1: one = true; break;
+            case Key::NUM_2: two = true; break;
+            case Key::NUM_3: three = true; break;
+
+            default: break;
+        }
     }
+
     void onKeyReleased(KeyEvent e) override {
-        if (e.key==Key::W) w=false; if (e.key==Key::S) s=false;
-        if (e.key==Key::A) a=false; if (e.key==Key::D) d=false;
-        if (e.key==Key::V) v=false; if (e.key==Key::SPACE) space=false;
-        if (e.key==Key::ENTER) enter=false; if (e.key==Key::ESCAPE) esc=false;
-        if (e.key==Key::KP_1) one=false; if (e.key==Key::KP_2) two=false; if (e.key==Key::KP_3) three=false;
-        if (e.key==Key::R) r=false;
+        switch (e.key) {
+            case Key::W: w = false; break;
+            case Key::S: s = false; break;
+            case Key::A: a = false; break;
+            case Key::D: d = false; break;
+            case Key::V: v = false; break;
+            case Key::SPACE: space = false; break;
+
+            case Key::ENTER: enter = false; break;
+            case Key::ESCAPE: esc = false; break;
+            case Key::R: r = false; break;
+
+            // top-row digits
+            case Key::NUM_1: one = false; break;
+            case Key::NUM_2: two = false; break;
+            case Key::NUM_3: three = false; break;
+
+            default: break;
+        }
     }
 };
 
-// ===== helpers =====
+// -------- tiny camera helpers --------
 static void camThird(PerspectiveCamera& cam,const Vector3& p,float yaw,float back=6,float h=3){
     cam.position.set(p.x-std::sin(yaw)*back, p.y+h, p.z-std::cos(yaw)*back); cam.lookAt(p);
 }
@@ -47,7 +76,7 @@ static void findWheels(Object3D* root, std::vector<Object3D*>& out){
     root->traverse([&](Object3D& o){ for(auto n:names) if(o.name==n){ out.push_back(&o); break; }});
 }
 
-// ===== pose =====
+// -------- car pose --------
 struct CarPose {
     Vector3 pos{};
     float yaw{0};
@@ -61,7 +90,7 @@ struct CarPose {
 
 class Game; // fwd
 
-// ===== trees =====
+// -------- trees --------
 class Trees {
 public:
     void add(std::shared_ptr<Object3D> t){ trees_.push_back(std::move(t)); }
@@ -71,7 +100,7 @@ private:
     float radius_{1.8f};
 };
 
-// ===== physics =====
+// -------- physics (tunables grouped) --------
 class CarPhysics {
 public:
     float accelF=20, accelB=18, brake=30, drag=2.5f, vMaxF=30, vMaxB=-25;
@@ -177,7 +206,7 @@ private:
     float yaw_{0}, yawRate_{0};
 };
 
-// ===== visuals =====
+// -------- visuals --------
 class CarVisual {
 public:
     CarVisual(Object3D* chassis, const std::vector<Object3D*>& wheels)
@@ -236,7 +265,7 @@ private:
     float tiltMax_{0.10f};
 };
 
-// ===== power-ups =====
+// -------- power-ups --------
 class PowerUp {
 public:
     enum class Type { Grow, Faster, Shrink };
@@ -266,7 +295,7 @@ private:
     std::vector<PowerUp> v_;
 };
 
-// ===== game =====
+// -------- game --------
 class Game {
 public:
     Game(Canvas* canv, GLRenderer* rend, Scene* scn, PerspectiveCamera* cam,
@@ -303,6 +332,15 @@ public:
         else camThird(*camera_, carRoot_->position, pose.yaw);
 
         renderer_->render(*scene_, *camera_);
+    }
+
+    void reset() {
+        phys_.setPos({0,0,0});
+        phys_.hardStop();
+        carRoot_->position.set(0,0,0);
+        carRoot_->rotation.set(0,0,0);
+        carRoot_->scale.set(1,1,1);
+        lastSafe_ = carRoot_->position;
     }
 
     void growCar(float f){ carRoot_->scale.multiplyScalar(f); }
@@ -357,17 +395,38 @@ void Trees::update(Game& g, Object3D* car, float currentSpeed){
     }
 }
 
-// ===== simple UI state (Phase 1) =====
-enum class GameState { Menu, VehicleSelect, Playing, Paused };
-struct GameUI { GameState state{GameState::Menu}; int vehicleIndex{0}; };
+// -------- simple UI state --------
+enum class GameState { Menu, Playing, Paused };
+struct GameUI { GameState state{GameState::Menu}; int selected{0}; };
 
-// ===== main =====
+// -------- small rig helper --------
+struct CarRig {
+    std::shared_ptr<Object3D> root;
+    std::shared_ptr<Object3D> chassis;
+    std::vector<Object3D*> wheels;
+};
+
+static CarRig buildCar(AssimpLoader& loader, const std::string& file, Scene& scene){
+    CarRig rig;
+    auto model = loader.load(file);
+    rig.root = Object3D::create();
+    rig.chassis = Object3D::create();
+    rig.chassis->add(model);
+    rig.root->add(rig.chassis);
+    rig.root->position.y = 0.f;
+    scene.add(rig.root);
+    findWheels(rig.chassis.get(), rig.wheels);
+    return rig;
+}
+
+// ===================== main =====================
 int main(){
     Canvas canvas("threepp driving car");
     GLRenderer renderer(canvas.size());
     Scene scene; scene.background = Color::skyblue;
     PerspectiveCamera camera(60, canvas.aspect(), 0.1f, 1000.f);
 
+    // ground
     auto plane = Mesh::create(PlaneGeometry::create(2000,2000), MeshPhongMaterial::create());
     plane->rotation.x = -math::PI/2.f; scene.add(plane);
     auto grid = GridHelper::create(2000,2000, Color::black, Color::darkgray);
@@ -375,21 +434,32 @@ int main(){
     scene.add(HemisphereLight::create(Color::white, Color::gray,1.0f));
     auto dir=DirectionalLight::create(Color::white,0.8f); dir->position.set(5,10,7); scene.add(dir);
 
+    // UI scene (start/pause screen)
+    Scene uiScene;
+    auto uiCam = OrthographicCamera::create(-1, 1, 1, -1, 0.0f, 10.0f);
+    auto startTex = TextureLoader().load("startscreen_test.png");
+    //startTex->magFilter = Texture::Filter::LinearFilter;
+    //startTex->minFilter = Texture::Filter::LinearMipmapLinearFilter;
+    auto uiMat  = MeshBasicMaterial::create(); uiMat->map=startTex; uiMat->transparent=true;
+    auto uiQuad = Mesh::create(PlaneGeometry::create(2,2), uiMat);
+    uiQuad->position.z = -1.f; uiScene.add(uiQuad);
+
     AssimpLoader loader;
 
-    // car rig
-    auto model = loader.load("suv_model.glb");
-    auto carRoot = Object3D::create();
-    auto chassis = Object3D::create();
-    chassis->add(model);
-    scene.add(carRoot);
-    carRoot->add(chassis);
-    carRoot->position.y=0;
+    // car files
+    std::vector<std::string> carFiles = {
+        "suv_model.glb",
+        "sedan_model.glb",
+        "tractor_model.glb"
+    };
 
-    std::vector<Object3D*> wheels; findWheels(chassis.get(), wheels);
+    // initial car
+    int currentCarIndex = 0;
+    CarRig rig = buildCar(loader, carFiles[currentCarIndex], scene);
 
     // power-ups
-    class PowerUps pums;
+    PowerUps pums;
+
     std::vector<std::string> files={"power_up1.glb","power_up2.glb","power_up3.glb"};
     std::mt19937 rng((unsigned)std::chrono::steady_clock::now().time_since_epoch().count());
     std::uniform_real_distribution<float> dxy(-950.f,950.f);
@@ -413,12 +483,27 @@ int main(){
     }
 
     DriveInput input; canvas.addKeyListener(input);
-    Game game(&canvas,&renderer,&scene,&camera, carRoot.get(), chassis.get(), wheels, &input, &pums, &trees);
+    std::unique_ptr<Game> game = std::make_unique<Game>(
+        &canvas, &renderer, &scene, &camera,
+        rig.root.get(), rig.chassis.get(), rig.wheels, &input, &pums, &trees);
 
-    // Phase 1 UI state
     GameUI ui;
-
     WindowSize last=canvas.size();
+
+    auto swapCar = [&](int newIndex){
+        if (newIndex < 0 || newIndex >= (int)carFiles.size()) return;
+        if (newIndex == currentCarIndex) return;
+        // remove old root from scene
+        if (rig.root) scene.remove(*rig.root);
+        // build new
+        rig = buildCar(loader, carFiles[newIndex], scene);
+        currentCarIndex = newIndex;
+        // recreate Game so visuals point to new nodes (physics resets on purpose)
+        game = std::make_unique<Game>(&canvas,&renderer,&scene,&camera,
+                                      rig.root.get(), rig.chassis.get(), rig.wheels,
+                                      &input, &pums, &trees);
+    };
+
     canvas.animate([&]{
         auto s=canvas.size();
         if(s.width()!=last.width()||s.height()!=last.height()){
@@ -427,36 +512,27 @@ int main(){
             last=s;
         }
 
+        // menu selection via keys 1/2/3 (works in Menu and Playing)
+        if (input.one)   ui.selected = 0, swapCar(0);
+        if (input.two)   ui.selected = 1, swapCar(1);
+        if (input.three) ui.selected = 2, swapCar(2);
+
         switch (ui.state) {
             case GameState::Menu: {
-                // “menu”: show scene, wait for keys
-                renderer.render(scene, camera);
-                // ENTER: start
-                if (input.enter) ui.state = GameState::Playing;
-                else if (input.two) ui.state = GameState::VehicleSelect;
-                break;
-            }
-            case GameState::VehicleSelect: {
-                renderer.render(scene, camera);
-                if (input.one)  ui.vehicleIndex = 0;
-                if (input.two)  ui.vehicleIndex = 1;
-                if (input.three)ui.vehicleIndex = 2;
-                if (input.enter) {
-                    ui.state = GameState::Playing;
-                } else if (input.esc) {
-                    ui.state = GameState::Menu;
-                }
+                renderer.render(uiScene, *uiCam);
+                if (input.enter) { swapCar(ui.selected); ui.state = GameState::Playing; }
                 break;
             }
             case GameState::Playing: {
-                game.update();
-                if (input.esc) ui.state = GameState::Paused;
+                if (input.esc) { ui.state = GameState::Paused; break; }
+                if (input.r)   { game->reset(); }
+                game->update();
                 break;
             }
             case GameState::Paused: {
-                renderer.render(scene, camera);
+                renderer.render(uiScene, *uiCam);
                 if (input.enter) ui.state = GameState::Playing;
-                if (input.esc)   ui.state = GameState::Menu;
+                if (input.r)     { game->reset(); ui.state = GameState::Menu; }
                 break;
             }
         }
