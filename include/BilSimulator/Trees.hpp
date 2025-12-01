@@ -9,7 +9,7 @@ namespace minbil {
 
     class Trees {
     public:
-        inline void add(std::shared_ptr<threepp::Object3D> t){ trees_.push_back(std::move(t)); }
+        void add(std::shared_ptr<threepp::Object3D> t){ trees_.push_back(std::move(t)); }
         void update(Game& g, threepp::Object3D* car, float currentSpeed){
             auto p=car->position;
             for (auto& t: trees_){

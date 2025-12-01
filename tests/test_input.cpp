@@ -5,21 +5,25 @@
 using namespace minbil;
 using namespace threepp;
 
+static KeyEvent makeKey(Key key) {
+    return KeyEvent{key, 0, 0};
+}
+
 TEST_CASE("InputState toggles on press/release") {
     InputState in;
-    in.onKeyPressed({Key::W});
-    REQUIRE(in.forward);
 
-    in.onKeyReleased({Key::W});
+    in.onKeyPressed(makeKey(Key::W));
+    REQUIRE(in.forward);
+    in.onKeyReleased(makeKey(Key::W));
     REQUIRE_FALSE(in.forward);
 
-    in.onKeyPressed({Key::SPACE});
+    in.onKeyPressed(makeKey(Key::SPACE));
     REQUIRE(in.drift);
-    in.onKeyReleased({Key::SPACE});
+    in.onKeyReleased(makeKey(Key::SPACE));
     REQUIRE_FALSE(in.drift);
 
-    in.onKeyPressed({Key::NUM_2});
+    in.onKeyPressed(makeKey(Key::NUM_2));
     REQUIRE(in.select2);
-    in.onKeyReleased({Key::NUM_2});
+    in.onKeyReleased(makeKey(Key::NUM_2));
     REQUIRE_FALSE(in.select2);
 }

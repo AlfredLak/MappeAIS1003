@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include "BilSimulator/VehiclePhysics.hpp"
+
 namespace minbil {
 
 class VehicleVisuals {
