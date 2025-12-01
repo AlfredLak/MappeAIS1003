@@ -6,33 +6,38 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
+#include <string>
 
 using namespace threepp;
 
-// -------- input --------
-class DriveInput : public KeyListener {
+//========================= Input =========================
+
+class InputController : public KeyListener {
 public:
-    bool w{false}, s{false}, a{false}, d{false}, v{false}, space{false};
-    bool enter{false}, esc{false}, r{false};
-    bool one{false}, two{false}, three{false};
+    // driving
+    bool forward{false}, backward{false}, steerLeft{false}, steerRight{false};
+    bool driftKey{false}, sideViewToggle{false};
+    // ui
+    bool keyEnter{false}, keyEsc{false}, keyReset{false};
+    // vehicle select
+    bool choose1{false}, choose2{false}, choose3{false};
 
     void onKeyPressed(KeyEvent e) override {
         switch (e.key) {
-            case Key::W: w = true; break;
-            case Key::S: s = true; break;
-            case Key::A: a = true; break;
-            case Key::D: d = true; break;
-            case Key::V: v = true; break;
-            case Key::SPACE: space = true; break;
+            case Key::W: forward = true; break;
+            case Key::S: backward = true; break;
+            case Key::A: steerLeft = true; break;
+            case Key::D: steerRight = true; break;
+            case Key::SPACE: driftKey = true; break;
+            case Key::V: sideViewToggle = true; break;
 
-            case Key::ENTER: enter = true; break;
-            case Key::ESCAPE: esc = true; break;
-            case Key::R: r = true; break;
+            case Key::ENTER: keyEnter = true; break;
+            case Key::ESCAPE: keyEsc = true; break;
+            case Key::R: keyReset = true; break;
 
-            // top-row digits
-            case Key::NUM_1: one = true; break;
-            case Key::NUM_2: two = true; break;
-            case Key::NUM_3: three = true; break;
+            case Key::NUM_1: choose1 = true; break;
+            case Key::NUM_2: choose2 = true; break;
+            case Key::NUM_3: choose3 = true; break;
 
             default: break;
         }
@@ -40,499 +45,626 @@ public:
 
     void onKeyReleased(KeyEvent e) override {
         switch (e.key) {
-            case Key::W: w = false; break;
-            case Key::S: s = false; break;
-            case Key::A: a = false; break;
-            case Key::D: d = false; break;
-            case Key::V: v = false; break;
-            case Key::SPACE: space = false; break;
+            case Key::W: forward = false; break;
+            case Key::S: backward = false; break;
+            case Key::A: steerLeft = false; break;
+            case Key::D: steerRight = false; break;
+            case Key::SPACE: driftKey = false; break;
+            case Key::V: sideViewToggle = false; break;
 
-            case Key::ENTER: enter = false; break;
-            case Key::ESCAPE: esc = false; break;
-            case Key::R: r = false; break;
+            case Key::ENTER: keyEnter = false; break;
+            case Key::ESCAPE: keyEsc = false; break;
+            case Key::R: keyReset = false; break;
 
-            // top-row digits
-            case Key::NUM_1: one = false; break;
-            case Key::NUM_2: two = false; break;
-            case Key::NUM_3: three = false; break;
+            case Key::NUM_1: choose1 = false; break;
+            case Key::NUM_2: choose2 = false; break;
+            case Key::NUM_3: choose3 = false; break;
 
             default: break;
         }
     }
 };
 
-// -------- tiny camera helpers --------
-static void camThird(PerspectiveCamera& cam,const Vector3& p,float yaw,float back=6,float h=3){
-    cam.position.set(p.x-std::sin(yaw)*back, p.y+h, p.z-std::cos(yaw)*back); cam.lookAt(p);
-}
-static void camFront(PerspectiveCamera& cam,const Vector3& p,float yaw,float front=6,float h=3){
-    cam.position.set(p.x+std::sin(yaw)*front, p.y+h, p.z+std::cos(yaw)*front); cam.lookAt(p);
-}
-static void camSide(PerspectiveCamera& cam,const Vector3& p,float yaw,float side=5,float h=3){
-    float sy=yaw-math::PI/2.f; cam.position.set(p.x-std::sin(sy)*side, p.y+h, p.z-std::cos(sy)*side); cam.lookAt(p);
-}
-static void findWheels(Object3D* root, std::vector<Object3D*>& out){
-    const char* names[]={"wheel_FL","wheel_FR","wheel_BL","wheel_BR"};
-    root->traverse([&](Object3D& o){ for(auto n:names) if(o.name==n){ out.push_back(&o); break; }});
+//========================= Camera helpers =========================
+
+static void cameraBehind(PerspectiveCamera& cam, const Vector3& carPos, float carYaw, float distance=6.f, float height=3.f) {
+    cam.position.set(carPos.x - std::sin(carYaw) * distance, carPos.y + height, carPos.z - std::cos(carYaw) * distance);
+    cam.lookAt(carPos);
 }
 
-// -------- car pose --------
-struct CarPose {
-    Vector3 pos{};
-    float yaw{0};
-    float vf{0}, vr{0};
-    float yawRate{0};
+static void cameraFront(PerspectiveCamera& cam, const Vector3& carPos, float carYaw, float distance=6.f, float height=3.f) {
+    cam.position.set(carPos.x + std::sin(carYaw) * distance, carPos.y + height, carPos.z + std::cos(carYaw) * distance);
+    cam.lookAt(carPos);
+}
+
+static void cameraRightSide(PerspectiveCamera& cam, const Vector3& carPos, float carYaw, float side=5.f, float height=3.f) {
+    const float sideYaw = carYaw - math::PI/2.f;
+    cam.position.set(carPos.x - std::sin(sideYaw) * side, carPos.y + height, carPos.z - std::cos(sideYaw) * side);
+    cam.lookAt(carPos);
+}
+
+//========================= Wheel discovery =========================
+
+static void findWheels(Object3D* root, std::vector<Object3D*>& outWheels) {
+    const char* names[] = {"wheel_FL", "wheel_FR", "wheel_BL", "wheel_BR"};
+    root->traverse([&](Object3D& node){
+        for (auto n : names) {
+            if (node.name == n) { outWheels.push_back(&node); break; }
+        }
+    });
+}
+
+//========================= Vehicle state (Pose) =========================
+
+struct VehiclePose {
+    Vector3 position{};
+    float yaw{0.f};
+    float forwardVel{0.f};        // velocity in forward axis
+    float lateralVel{0.f};        // velocity in right axis
+    float yawRate{0.f};
     bool reversing{false};
-    bool drift{false};
+    bool drifting{false};
     bool normalSlip{false};
-    float wheelSpinDelta{0};
+    float wheelSpinDelta{0.f};
 };
 
-class Game; // fwd
+// forward declarations
+class Game;
 
-// -------- trees --------
-class Trees {
+//========================= World objects: Trees =========================
+
+class TreeManager {
 public:
-    void add(std::shared_ptr<Object3D> t){ trees_.push_back(std::move(t)); }
-    void update(Game& g, Object3D* car, float currentSpeed);
+    void add(std::shared_ptr<Object3D> tree) { trees_.push_back(std::move(tree)); }
+
+    void update(Game& game, Object3D* carNode, float carSpeed);
+
 private:
     std::vector<std::shared_ptr<Object3D>> trees_;
-    float radius_{1.8f};
+    float collisionRadius_{1.8f};
 };
 
-// -------- physics (tunables grouped) --------
-class CarPhysics {
+//========================= Vehicle Physics =========================
+// (Encapsulates kinematics and handling. No rendering here.)
+
+class VehiclePhysics {
 public:
-    float accelF=20, accelB=18, brake=30, drag=2.5f, vMaxF=30, vMaxB=-25;
-    float turnMax=1.05f, turnAcc=3.8f, turnFric=5.2f;
-    float revScale=0.30f, revAcc=2.0f, revFric=6.5f, revClamp=0.30f, revGrip=24.f;
-    float gripN=12.f, gripD=1.5f, driftKick=80.f, driftMinV=2.f, driftGripSpeed=0.08f, gripDMin=0.8f;
-    float normGripFactor=0.45f, normKick=18.f;
-    float airDrag=0.05f, wheelR=0.35f;
+    // speed feel
+    float accelForward{20.f}, accelBackward{18.f}, brakeDecel{30.f}, coastDrag{2.5f};
+    float maxForward{30.f}, maxBackward{-25.f};
+    // steering
+    float maxTurn{1.05f}, turnAccel{3.8f}, turnFriction{5.2f};
+    // reverse softness
+    float reverseTurnScale{0.30f}, reverseTurnAccel{2.0f}, reverseTurnFriction{6.5f}, reverseTurnClamp{0.30f}, reverseGrip{24.f};
+    // grip & drift
+    float baseGrip{12.f}, driftGripBase{1.5f}, driftMinSpeed{2.f}, driftGripSpeed{0.08f}, driftGripMin{0.8f};
+    float driftKick{80.f};                    // lateral push when drifting
+    float normalSlipFactor{0.45f}, normalSlipKick{18.f};
+    // misc
+    float airDragFactor{0.05f};
+    float wheelRadius{0.35f};
 
-    CarPose step(const DriveInput& in, float dt){
-        CarPose P;
-        float fx=std::sin(yaw_), fz=std::cos(yaw_), rx=std::cos(yaw_), rz=-std::sin(yaw_);
-        float vf = vx_*fx + vz_*fz;
-        float vr = vx_*rx + vz_*rz;
+    VehiclePose step(const InputController& input, float dt) {
+        VehiclePose out;
 
-        float inputTurn = (in.a?+turnMax:0.f) + (in.d?-turnMax:0.f);
-        bool onlyS = in.s && !in.w && !in.a && !in.d;
-        bool reversing = (vf < -0.05f);
-        float targetTurn = reversing ? (revScale*inputTurn) : inputTurn;
-        if (onlyS) targetTurn = 0.f;
+        // local axes
+        const float fx = std::sin(yaw_), fz = std::cos(yaw_);
+        const float rx = std::cos(yaw_), rz = -std::sin(yaw_);
 
-        float resp = (std::abs(targetTurn)>0)? (reversing?revAcc:turnAcc) : (reversing?revFric:turnFric);
-        float alpha = 1.f-std::exp(-resp*dt);
-        yawRate_ += (targetTurn - yawRate_) * alpha;
-        if (reversing){ if (yawRate_> revClamp) yawRate_= revClamp; if (yawRate_<-revClamp) yawRate_=-revClamp; }
+        float forwardV = velX_ * fx + velZ_ * fz;
+        float lateralV = velX_ * rx + velZ_ * rz;
 
-        bool braking = in.s && (vf>0.05f);
-        if (in.w) vf += accelF*dt;
-        if (in.s){
-            if (vf>0){ vf -= brake*dt; if (vf<0) vf=0; }
-            else { vf -= accelB*dt; }
+        // steering target
+        const float steerInput = (input.steerLeft ? +maxTurn : 0.f) + (input.steerRight ? -maxTurn : 0.f);
+        const bool onlyReverseKey = input.backward && !input.forward && !input.steerLeft && !input.steerRight;
+        const bool isReversing = (forwardV < -0.05f);
+
+        float targetTurn = isReversing ? (reverseTurnScale * steerInput) : steerInput;
+        if (onlyReverseKey) targetTurn = 0.f;
+
+        const float steerResponse = (std::abs(targetTurn) > 0.f)
+                                    ? (isReversing ? reverseTurnAccel : turnAccel)
+                                    : (isReversing ? reverseTurnFriction : turnFriction);
+        const float steerAlpha = 1.f - std::exp(-steerResponse * dt);
+        yawRate_ += (targetTurn - yawRate_) * steerAlpha;
+        if (isReversing) {
+            yawRate_ = std::clamp(yawRate_, -reverseTurnClamp, reverseTurnClamp);
         }
 
-        if (!in.w && !in.s){
-            if (vf>0){ vf -= drag*dt; if (vf<0) vf=0; }
-            else if (vf<0){ vf += drag*dt; if (vf>0) vf=0; }
+        // throttle/brake/coast
+        const bool braking = input.backward && (forwardV > 0.05f);
+        if (input.forward) forwardV += accelForward * dt;
+        if (input.backward) {
+            if (forwardV > 0) { forwardV -= brakeDecel * dt; forwardV = std::max(0.f, forwardV); }
+            else { forwardV -= accelBackward * dt; }
         }
-        vf = std::clamp(vf, vMaxB, vMaxF);
+        if (!input.forward && !input.backward) {
+            if (forwardV > 0) { forwardV -= coastDrag * dt; forwardV = std::max(0.f, forwardV); }
+            else if (forwardV < 0) { forwardV += coastDrag * dt; forwardV = std::min(0.f, forwardV); }
+        }
+        forwardV = std::clamp(forwardV, maxBackward, maxForward);
 
-        bool allowDrift = in.space && (vf>0.05f) && !onlyS;
-        bool normalSlip = !allowDrift && (vf>0.05f) && (std::abs(yawRate_)>1e-4f) && !reversing;
+        // slip/drift model
+        const bool allowDrift = input.driftKey && (forwardV > 0.05f) && !onlyReverseKey;
+        const bool normalSlip = !allowDrift && (forwardV > 0.05f) && (std::abs(yawRate_) > 1e-4f) && !isReversing;
 
-        float grip = gripN;
-        if (allowDrift){
-            float sf = std::clamp(std::abs(vf)*driftGripSpeed,0.f,3.f);
-            grip = std::max(gripDMin, gripD/(1.f+sf));
-            float sgn = (yawRate_>=0)? 1.f : -1.f;
-            if (vf>driftMinV){
-                float g = 0.3f + 0.7f*std::min(std::abs(vf)/20.f,1.f);
-                vr += sgn * driftKick * std::abs(yawRate_) * g * dt;
+        float grip = baseGrip;
+        if (allowDrift) {
+            const float speedFactor = std::clamp(std::abs(forwardV) * driftGripSpeed, 0.f, 3.f);
+            grip = std::max(driftGripMin, driftGripBase / (1.f + speedFactor));
+            const float sgn = (yawRate_ >= 0) ? 1.f : -1.f;
+            if (forwardV > driftMinSpeed) {
+                const float gain = 0.3f + 0.7f * std::min(std::abs(forwardV) / 20.f, 1.f);
+                lateralV += sgn * driftKick * std::abs(yawRate_) * gain * dt;
             }
-        } else if (normalSlip){
-            float sp = std::clamp(std::abs(vf)/15.f,0.f,1.5f);
-            grip = gripN / (1.f + normGripFactor*sp);
-            float sgn = (yawRate_>=0)? 1.f : -1.f;
-            vr += sgn * normKick * std::abs(yawRate_) * (0.5f+0.5f*sp) * dt;
+        } else if (normalSlip) {
+            const float sp = std::clamp(std::abs(forwardV) / 15.f, 0.f, 1.5f);
+            grip = baseGrip / (1.f + normalSlipFactor * sp);
+            const float sgn = (yawRate_ >= 0) ? 1.f : -1.f;
+            lateralV += sgn * normalSlipKick * std::abs(yawRate_) * (0.5f + 0.5f * sp) * dt;
         }
 
-        if (reversing && !(in.a||in.d)) grip = revGrip;
-        if (braking){ grip = std::max(grip, 40.f); yawRate_ *= (1.f - std::min(1.f, 8.f*dt)); }
+        if (isReversing && !(input.steerLeft || input.steerRight)) grip = reverseGrip;
+        if (braking) { grip = std::max(grip, 40.f); yawRate_ *= (1.f - std::min(1.f, 8.f * dt)); }
 
-        float latA = 1.f-std::exp(-grip*dt);
-        vr += (0.f - vr) * latA;
+        const float lateralBlend = 1.f - std::exp(-grip * dt);
+        lateralV += (0.f - lateralV) * lateralBlend;
 
-        float air = std::max(0.f, 1.f - airDrag*dt);
-        vf*=air; vr*=air;
+        const float air = std::max(0.f, 1.f - airDragFactor * dt);
+        forwardV *= air; lateralV *= air;
 
-        vx_ = fx*vf + rx*vr;
-        vz_ = fz*vf + rz*vr;
-        pos_.x += vx_*dt; pos_.z += vz_*dt;
+        velX_ = fx * forwardV + rx * lateralV;
+        velZ_ = fz * forwardV + rz * lateralV;
+        position_.x += velX_ * dt;
+        position_.z += velZ_ * dt;
 
-        bool moving = (vx_*vx_+vz_*vz_ > 1e-6f);
-        bool revNoTurn = reversing && !(in.a||in.d);
-        bool freezeAlign = !moving || revNoTurn;
-        float desiredYaw = moving ? std::atan2(vx_, vz_) : yaw_;
-        float alignRate = (reversing? 0.f : (allowDrift? 1.0f : 6.0f));
-        float aY = freezeAlign? 0.f : (1.f - std::exp(-alignRate*dt));
+        const bool moving = (velX_ * velX_ + velZ_ * velZ_ > 1e-6f);
+        const bool reversingNoSteer = isReversing && !(input.steerLeft || input.steerRight);
+        const bool freezeAlign = !moving || reversingNoSteer;
+        const float desiredYaw = moving ? std::atan2(velX_, velZ_) : yaw_;
+        const float alignRate = (isReversing ? 0.f : (allowDrift ? 1.0f : 6.0f));
+        const float alignAlpha = freezeAlign ? 0.f : (1.f - std::exp(-alignRate * dt));
 
-        yaw_ += yawRate_*dt;
-        if (!freezeAlign){
+        yaw_ += yawRate_ * dt;
+        if (!freezeAlign) {
             float d = desiredYaw - yaw_;
-            while (d> math::PI) d -= 2*math::PI;
-            while (d<-math::PI) d += 2*math::PI;
-            yaw_ += d * aY;
+            while (d >  math::PI) d -= 2 * math::PI;
+            while (d < -math::PI) d += 2 * math::PI;
+            yaw_ += d * alignAlpha;
         }
 
-        P.pos = pos_; P.yaw = yaw_; P.vf=vf; P.vr=vr; P.yawRate=yawRate_;
-        P.reversing = reversing; P.drift = allowDrift; P.normalSlip = normalSlip;
-        P.wheelSpinDelta = (wheelR>0)? (vf/wheelR)*dt : 0.f;
-        return P;
+        out.position = position_;
+        out.yaw = yaw_;
+        out.forwardVel = forwardV;
+        out.lateralVel = lateralV;
+        out.yawRate = yawRate_;
+        out.reversing = isReversing;
+        out.drifting = allowDrift;
+        out.normalSlip = normalSlip;
+        out.wheelSpinDelta = (wheelRadius > 0.f) ? (forwardV / wheelRadius) * dt : 0.f;
+
+        return out;
     }
 
-    void boostMax(float s){ vMaxF*=s; }
-    void boostAccel(float s){ accelF*=s; }
-    void hardStop(){ vx_=0; vz_=0; }
-    const Vector3& pos() const { return pos_; }
-    void setPos(const Vector3& p){ pos_=p; }
-    float speed() const { return std::sqrt(vx_*vx_ + vz_*vz_); }
+    // controls from game/power-ups
+    void setPosition(const Vector3& p) { position_ = p; }
+    void fullStop() { velX_ = 0.f; velZ_ = 0.f; }
+    void boostTopSpeed(float factor) { maxForward *= factor; }
+    void boostAcceleration(float factor) { accelForward *= factor; }
+    float currentSpeed() const { return std::sqrt(velX_ * velX_ + velZ_ * velZ_); }
 
 private:
-    Vector3 pos_{0,0,0};
-    float vx_{0}, vz_{0};
-    float yaw_{0}, yawRate_{0};
+    Vector3 position_{0,0,0};
+    float velX_{0.f}, velZ_{0.f};
+    float yaw_{0.f};
+    float yawRate_{0.f};
 };
 
-// -------- visuals --------
-class CarVisual {
+//========================= Vehicle Visuals =========================
+// (Encapsulates only presentation of chassis & wheels in response to pose.)
+
+class VehicleVisuals {
 public:
-    CarVisual(Object3D* chassis, const std::vector<Object3D*>& wheels)
-        : ch_(chassis), wheels_(wheels) {}
+    VehicleVisuals(Object3D* chassisNode, const std::vector<Object3D*>& wheelNodes)
+        : chassis_(chassisNode), wheels_(wheelNodes) {}
 
-    float yawDrift=0.6f, offDrift=0.6f;
-    float yawNorm =0.35f, offNorm =0.35f;
-    float followYaw=10.f, followOff=12.f;
+    // tuning for visual response
+    float visYawDrift{0.6f}, visOffsetDrift{0.6f};
+    float visYawNormal{0.35f}, visOffsetNormal{0.35f};
+    float followYawRate{10.f}, followOffsetRate{12.f};
+    // crash tilt
+    void triggerCrashTilt() { tiltTimer_ = tiltDuration_; }
 
-    void crashTilt(){ tiltTimer_ = tiltDur_; }
+    void apply(float dt, const VehiclePose& pose) {
+        for (auto* w : wheels_) w->rotation.x += pose.wheelSpinDelta;
 
-    void apply(float dt, const CarPose& P){
-        for (auto* w:wheels_) w->rotation.x += P.wheelSpinDelta;
-
-        float yawVisTarget=0.f, offVisTarget=0.f;
-        if (!P.reversing){
-            float safe = (std::abs(P.vf)>1e-3f)? P.vf : (P.vf>=0? 1e-3f:-1e-3f);
-            float slip = std::atan2(P.vr, safe);
-            if (P.drift){
-                float boost = 1.f + 0.8f*std::min(std::abs(P.vf)/15.f, 1.5f);
-                slip *= boost;
-                yawVisTarget =  yawDrift * slip;
-                offVisTarget = -offDrift * std::clamp(P.vr/10.f,-1.f,1.f);
-            } else if (P.normalSlip){
-                float boost = 1.f + 0.55f*std::min(std::abs(P.vf)/15.f, 1.25f);
-                slip *= boost;
-                yawVisTarget =  yawNorm * slip;
-                offVisTarget = -offNorm * std::clamp(P.vr/10.f,-1.f,1.f);
+        float targetYawVis = 0.f, targetXOffset = 0.f;
+        if (!pose.reversing) {
+            const float safeV = (std::abs(pose.forwardVel) > 1e-3f) ? pose.forwardVel : (pose.forwardVel >= 0 ? 1e-3f : -1e-3f);
+            float slipAngle = std::atan2(pose.lateralVel, safeV);
+            if (pose.drifting) {
+                const float boost = 1.f + 0.8f * std::min(std::abs(pose.forwardVel) / 15.f, 1.5f);
+                slipAngle *= boost;
+                targetYawVis  =  visYawDrift * slipAngle;
+                targetXOffset = -visOffsetDrift * std::clamp(pose.lateralVel / 10.f, -1.f, 1.f);
+            } else if (pose.normalSlip) {
+                const float boost = 1.f + 0.55f * std::min(std::abs(pose.forwardVel) / 15.f, 1.25f);
+                slipAngle *= boost;
+                targetYawVis  =  visYawNormal * slipAngle;
+                targetXOffset = -visOffsetNormal * std::clamp(pose.lateralVel / 10.f, -1.f, 1.f);
             }
         }
-        float aY = 1.f-std::exp(-followYaw*dt);
-        yawVis_ += (yawVisTarget - yawVis_) * aY;
-        ch_->rotation.y = yawVis_;
 
-        float aO = 1.f-std::exp(-followOff*dt);
-        offVis_ += (offVisTarget - offVis_) * aO;
-        ch_->position.set(offVis_, 0, 0);
+        const float yawAlpha = 1.f - std::exp(-followYawRate * dt);
+        yawVisual_ += (targetYawVis - yawVisual_) * yawAlpha;
+        chassis_->rotation.y = yawVisual_;
 
-        if (tiltTimer_ > 0.f){
+        const float offAlpha = 1.f - std::exp(-followOffsetRate * dt);
+        xOffset_ += (targetXOffset - xOffset_) * offAlpha;
+        chassis_->position.set(xOffset_, 0, 0);
+
+        if (tiltTimer_ > 0.f) {
             tiltTimer_ -= dt;
-            float t = std::max(0.f, tiltTimer_ / tiltDur_);
-            float angle = tiltMax_ * t * (2.f - t);
-            ch_->rotation.x = angle;
+            const float t = std::max(0.f, tiltTimer_ / tiltDuration_);
+            const float angle = tiltMax_ * t * (2.f - t);
+            chassis_->rotation.x = angle;
         } else {
-            ch_->rotation.x *= std::exp(-10.f*dt);
+            chassis_->rotation.x *= std::exp(-10.f * dt);
         }
     }
 
 private:
-    Object3D* ch_{};
+    Object3D* chassis_{};
     std::vector<Object3D*> wheels_;
-    float yawVis_{0}, offVis_{0};
+    float yawVisual_{0.f};
+    float xOffset_{0.f};
 
+    // crash tilt state
     float tiltTimer_{0.f};
-    float tiltDur_{0.15f};
+    float tiltDuration_{0.15f};
     float tiltMax_{0.10f};
 };
 
-// -------- power-ups --------
+//========================= Power-ups =========================
+
 class PowerUp {
 public:
-    enum class Type { Grow, Faster, Shrink };
-    PowerUp(std::shared_ptr<Object3D> obj, Type t): obj_(std::move(obj)), t_(t) {}
-    Object3D* obj(){ return obj_.get(); }
-    bool active() const { return on_; }
-    void apply(class Game& g);
-    void hide(){ on_=false; if(obj_) obj_->visible=false; }
+    enum class Kind { Grow, Faster, Shrink };
+
+    PowerUp(std::shared_ptr<Object3D> object, Kind kind) : object_(std::move(object)), kind_(kind) {}
+
+    Object3D* node() { return object_.get(); }
+    bool active() const { return active_; }
+
+    void apply(Game& game);
+    void deactivate() { active_ = false; if (object_) object_->visible = false; }
+
 private:
-    std::shared_ptr<Object3D> obj_;
-    Type t_;
-    bool on_{true};
-};
-class PowerUps {
-public:
-    void add(std::shared_ptr<Object3D> o, PowerUp::Type t){ v_.emplace_back(std::move(o),t); }
-    void update(Game& g, Object3D* car){
-        auto p=car->position;
-        for(auto& pu:v_){
-            if(!pu.active()) continue;
-            auto* o=pu.obj(); if(!o) continue;
-            float dx=p.x-o->position.x, dz=p.z-o->position.z;
-            if(dx*dx+dz*dz < 2.25f){ pu.apply(g); pu.hide(); }
-        }
-    }
-private:
-    std::vector<PowerUp> v_;
+    std::shared_ptr<Object3D> object_;
+    Kind kind_;
+    bool active_{true};
 };
 
-// -------- game --------
+class PowerUpManager {
+public:
+    void add(std::shared_ptr<Object3D> node, PowerUp::Kind kind) {
+        items_.emplace_back(std::move(node), kind);
+    }
+
+    void update(Game& game, Object3D* carNode) {
+        const auto& p = carNode->position;
+        for (auto& pu : items_) {
+            if (!pu.active()) continue;
+            auto* obj = pu.node(); if (!obj) continue;
+            const float dx = p.x - obj->position.x;
+            const float dz = p.z - obj->position.z;
+            if (dx*dx + dz*dz < 2.25f) { // ~1.5m radius
+                pu.apply(game);
+                pu.deactivate();
+            }
+        }
+    }
+
+private:
+    std::vector<PowerUp> items_;
+};
+
+//========================= Game (composition root) =========================
+
 class Game {
 public:
-    Game(Canvas* canv, GLRenderer* rend, Scene* scn, PerspectiveCamera* cam,
-         Object3D* carRoot, Object3D* chassis, const std::vector<Object3D*>& wheels,
-         DriveInput* in, PowerUps* pus, Trees* trees)
-        : canvas_(canv), renderer_(rend), scene_(scn), camera_(cam),
-          carRoot_(carRoot), input_(in), pwr_(pus), trees_(trees), vis_(chassis,wheels) {
-        camThird(*camera_, carRoot_->position, 0.f);
-        last_ = clk_.getElapsedTime();
-        lastSafe_ = carRoot_->position;
+    Game(Canvas& canvas,
+         GLRenderer& renderer,
+         Scene& scene,
+         PerspectiveCamera& camera,
+         Object3D& vehicleRoot,
+         Object3D& chassisNode,
+         const std::vector<Object3D*>& wheelNodes,
+         InputController& input,
+         PowerUpManager& powerUps,
+         TreeManager& trees)
+        : canvas_(canvas), renderer_(renderer), scene_(scene), camera_(camera),
+          vehicleRoot_(&vehicleRoot), input_(&input), powerUps_(&powerUps), trees_(&trees),
+          visuals_(&chassisNode, wheelNodes) {
+        cameraBehind(camera_, vehicleRoot_->position, 0.f);
+        lastFrameTime_ = clock_.getElapsedTime();
+        lastSafePosition_ = vehicleRoot_->position;
     }
 
-    void update(){
-        double now=clk_.getElapsedTime();
-        float dt = float(now-last_); last_=now; if(dt>0.033f) dt=0.033f;
+    void updateFrame() {
+        const double now = clock_.getElapsedTime();
+        float dt = static_cast<float>(now - lastFrameTime_);
+        lastFrameTime_ = now;
+        if (dt > 0.033f) dt = 0.033f; // clamp
 
-        lastSafe_ = carRoot_->position;
+        lastSafePosition_ = vehicleRoot_->position;
 
-        CarPose pose = phys_.step(*input_, dt);
+        const VehiclePose pose = physics_.step(*input_, dt);
 
-        carRoot_->position.copy(pose.pos);
-        carRoot_->rotation.y = pose.yaw;
+        vehicleRoot_->position.copy(pose.position);
+        vehicleRoot_->rotation.y = pose.yaw;
 
-        vis_.apply(dt, pose);
+        visuals_.apply(dt, pose);
 
-        if (pwr_)   pwr_->update(*this, carRoot_);
-        if (trees_) trees_->update(*this, carRoot_, phys_.speed());
+        if (powerUps_) powerUps_->update(*this, vehicleRoot_);
+        if (trees_)    trees_->update(*this, vehicleRoot_, physics_.currentSpeed());
 
-        if (input_->v && !prevV_) side_=!side_;
-        prevV_=input_->v;
+        if (input_->sideViewToggle && !sideViewPressedLastFrame_) sideViewEnabled_ = !sideViewEnabled_;
+        sideViewPressedLastFrame_ = input_->sideViewToggle;
 
-        if (side_) camSide(*camera_, carRoot_->position, pose.yaw);
-        else if (pose.reversing) camFront(*camera_, carRoot_->position, pose.yaw);
-        else camThird(*camera_, carRoot_->position, pose.yaw);
+        if (sideViewEnabled_)              cameraRightSide(camera_, vehicleRoot_->position, pose.yaw);
+        else if (pose.reversing)           cameraFront(camera_,      vehicleRoot_->position, pose.yaw);
+        else                               cameraBehind(camera_,     vehicleRoot_->position, pose.yaw);
 
-        renderer_->render(*scene_, *camera_);
+        renderer_.render(scene_, camera_);
     }
 
-    void reset() {
-        phys_.setPos({0,0,0});
-        phys_.hardStop();
-        carRoot_->position.set(0,0,0);
-        carRoot_->rotation.set(0,0,0);
-        carRoot_->scale.set(1,1,1);
-        lastSafe_ = carRoot_->position;
+    // lifecycle
+    void resetWorld() {
+        physics_.setPosition({0,0,0});
+        physics_.fullStop();
+        vehicleRoot_->position.set(0,0,0);
+        vehicleRoot_->rotation.set(0,0,0);
+        vehicleRoot_->scale.set(1,1,1);
+        lastSafePosition_ = vehicleRoot_->position;
     }
 
-    void growCar(float f){ carRoot_->scale.multiplyScalar(f); }
-    void faster(float sMax,float sAcc){ phys_.boostMax(sMax); phys_.boostAccel(sAcc); }
+    // power-up hooks
+    void makeBigger(float scaleFactor) { vehicleRoot_->scale.multiplyScalar(scaleFactor); }
+    void makeFaster(float topSpeedFactor, float accelFactor) { physics_.boostTopSpeed(topSpeedFactor); physics_.boostAcceleration(accelFactor); }
+    void makeSmaller(float scaleFactor) { vehicleRoot_->scale.multiplyScalar(scaleFactor); }
 
-    void onCollision(float impactSpeed){
-        const double now = clk_.getElapsedTime();
-        if (impactSpeed < crashSpeedThreshold_) {
-            phys_.hardStop(); phys_.setPos(lastSafe_); carRoot_->position.copy(lastSafe_);
+    // collisions (trees)
+    void onTreeCollision(float impactSpeed) {
+        const double now = clock_.getElapsedTime();
+        if (impactSpeed < collisionSpeedThreshold_) {
+            physics_.fullStop(); physics_.setPosition(lastSafePosition_); vehicleRoot_->position.copy(lastSafePosition_);
             return;
         }
-        if (now - lastCrashTime_ < crashCooldown_) {
-            phys_.hardStop(); phys_.setPos(lastSafe_); carRoot_->position.copy(lastSafe_);
+        if (now - lastCrashTime_ < collisionCooldown_) {
+            physics_.fullStop(); physics_.setPosition(lastSafePosition_); vehicleRoot_->position.copy(lastSafePosition_);
             return;
         }
         lastCrashTime_ = now;
-        phys_.hardStop(); phys_.setPos(lastSafe_); carRoot_->position.copy(lastSafe_);
-        vis_.crashTilt();
+        physics_.fullStop(); physics_.setPosition(lastSafePosition_); vehicleRoot_->position.copy(lastSafePosition_);
+        visuals_.triggerCrashTilt();
     }
 
+    // accessors
+    VehiclePhysics& physics() { return physics_; }
+
 private:
-    Canvas* canvas_; GLRenderer* renderer_; Scene* scene_; PerspectiveCamera* camera_;
-    Object3D* carRoot_; DriveInput* input_; PowerUps* pwr_; Trees* trees_;
-    CarPhysics phys_; CarVisual vis_;
-    Clock clk_; double last_{0.0};
-    bool side_{false}, prevV_{false};
-    Vector3 lastSafe_;
+    Canvas& canvas_;
+    GLRenderer& renderer_;
+    Scene& scene_;
+    PerspectiveCamera& camera_;
+    Object3D* vehicleRoot_{};
+    InputController* input_{};
+    PowerUpManager* powerUps_{};
+    TreeManager* trees_{};
+    VehiclePhysics physics_;
+    VehicleVisuals visuals_;
+
+    Clock clock_;
+    double lastFrameTime_{0.0};
+    bool sideViewEnabled_{false};
+    bool sideViewPressedLastFrame_{false};
+    Vector3 lastSafePosition_;
     double lastCrashTime_{-1.0};
-    float crashCooldown_{0.25f};
-    float crashSpeedThreshold_{2.5f};
+    float collisionCooldown_{0.25f};
+    float collisionSpeedThreshold_{2.5f};
 };
 
-// power-up behavior
-void PowerUp::apply(Game& g){
-    switch(t_){
-        case Type::Grow:   g.growCar(1.4f); break;
-        case Type::Faster: g.faster(1.35f,1.3f); break;
-        case Type::Shrink: g.growCar(0.7f); break;
+// Power-up behavior (kept small and focused)
+void PowerUp::apply(Game& game) {
+    switch (kind_) {
+        case Kind::Grow:   game.makeBigger(1.4f); break;
+        case Kind::Faster: game.makeFaster(1.35f, 1.3f); break;
+        case Kind::Shrink: game.makeSmaller(0.7f); break;
     }
 }
 
-// Trees::update after Game is complete
-void Trees::update(Game& g, Object3D* car, float currentSpeed){
-    auto p=car->position;
-    for (auto& t: trees_){
-        auto* o=t.get(); if(!o) continue;
-        float dx=p.x-o->position.x, dz=p.z-o->position.z;
-        if (dx*dx+dz*dz < radius_*radius_){
-            g.onCollision(currentSpeed);
+// TreeManager after Game definition
+void TreeManager::update(Game& game, Object3D* carNode, float currentSpeed) {
+    const auto& p = carNode->position;
+    for (auto& t : trees_) {
+        auto* node = t.get(); if (!node) continue;
+        const float dx = p.x - node->position.x;
+        const float dz = p.z - node->position.z;
+        if (dx*dx + dz*dz < (collisionRadius_ * collisionRadius_)) {
+            game.onTreeCollision(currentSpeed);
             break;
         }
     }
 }
 
-// -------- simple UI state --------
-enum class GameState { Menu, Playing, Paused };
-struct GameUI { GameState state{GameState::Menu}; int selected{0}; };
+//========================= UI state =========================
 
-// -------- small rig helper --------
-struct CarRig {
+enum class GameState { Menu, Playing, Paused };
+struct UIState { GameState state{GameState::Menu}; int selectedVehicle{0}; };
+
+//========================= Vehicle rig builder =========================
+
+struct VehicleRig {
     std::shared_ptr<Object3D> root;
     std::shared_ptr<Object3D> chassis;
     std::vector<Object3D*> wheels;
 };
 
-static CarRig buildCar(AssimpLoader& loader, const std::string& file, Scene& scene){
-    CarRig rig;
-    auto model = loader.load(file);
-    rig.root = Object3D::create();
-    rig.chassis = Object3D::create();
+static VehicleRig buildVehicle(AssimpLoader& loader, const std::string& modelFile, Scene& scene) {
+    VehicleRig rig;
+    auto model = loader.load(modelFile);
+
+    rig.root   = Object3D::create();
+    rig.chassis= Object3D::create();
+
     rig.chassis->add(model);
     rig.root->add(rig.chassis);
     rig.root->position.y = 0.f;
+
     scene.add(rig.root);
     findWheels(rig.chassis.get(), rig.wheels);
     return rig;
 }
 
-// ===================== main =====================
-int main(){
+//========================= Main =========================
+
+int main() {
     Canvas canvas("threepp driving car");
     GLRenderer renderer(canvas.size());
+
     Scene scene; scene.background = Color::skyblue;
     PerspectiveCamera camera(60, canvas.aspect(), 0.1f, 1000.f);
 
-    // ground
-    auto plane = Mesh::create(PlaneGeometry::create(2000,2000), MeshPhongMaterial::create());
-    plane->rotation.x = -math::PI/2.f; scene.add(plane);
-    auto grid = GridHelper::create(2000,2000, Color::black, Color::darkgray);
-    grid->position.y=0.01f; scene.add(grid);
-    scene.add(HemisphereLight::create(Color::white, Color::gray,1.0f));
-    auto dir=DirectionalLight::create(Color::white,0.8f); dir->position.set(5,10,7); scene.add(dir);
+    const float kGroundSize = 2048.f; // matches PNG
 
-    // UI scene (start/pause screen)
+    TextureLoader texLoader;
+    auto drivingMap = texLoader.load("driving_map.png");
+
+    auto groundMat = MeshPhongMaterial::create();
+    //groundMat->color = Color::white;   // don’t tint
+    groundMat->map = drivingMap;
+
+    auto ground = Mesh::create(PlaneGeometry::create(kGroundSize, kGroundSize), groundMat);
+    ground->rotation.x = -math::PI / 2.f;
+    scene.add(ground);
+
+    // lights
+    scene.add(HemisphereLight::create(Color::white, Color::gray, 1.0f));
+    auto dir = DirectionalLight::create(Color::white, 0.8f);
+    dir->position.set(5, 10, 7);
+    scene.add(dir);
+
+    // UI scene (start/pause)
     Scene uiScene;
     auto uiCam = OrthographicCamera::create(-1, 1, 1, -1, 0.0f, 10.0f);
-    auto startTex = TextureLoader().load("startscreen_test.png");
-    //startTex->magFilter = Texture::Filter::LinearFilter;
-    //startTex->minFilter = Texture::Filter::LinearMipmapLinearFilter;
-    auto uiMat  = MeshBasicMaterial::create(); uiMat->map=startTex; uiMat->transparent=true;
+    auto startTexture = TextureLoader().load("startscreen_test.png");
+    auto uiMat  = MeshBasicMaterial::create();
+    uiMat->map = startTexture;
+    uiMat->transparent = true;
     auto uiQuad = Mesh::create(PlaneGeometry::create(2,2), uiMat);
-    uiQuad->position.z = -1.f; uiScene.add(uiQuad);
+    uiQuad->position.z = -1.f;
+    uiScene.add(uiQuad);
 
+    // loader
     AssimpLoader loader;
 
-    // car files
-    std::vector<std::string> carFiles = {
+    // vehicle choices
+    std::vector<std::string> vehicleFiles = {
         "suv_model.glb",
         "sedan_model.glb",
         "tractor_model.glb"
     };
 
-    // initial car
-    int currentCarIndex = 0;
-    CarRig rig = buildCar(loader, carFiles[currentCarIndex], scene);
+    // build initial vehicle
+    int currentVehicleIndex = 0;
+    VehicleRig rig = buildVehicle(loader, vehicleFiles[currentVehicleIndex], scene);
 
     // power-ups
-    PowerUps pums;
+    PowerUpManager powerUps;
+    std::vector<std::string> powerUpFiles = {"power_up1.glb","power_up2.glb","power_up3.glb"};
+    std::mt19937 rng(static_cast<unsigned>(std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::uniform_real_distribution<float> spawnDist(-950.f, 950.f);
+    std::uniform_int_distribution<int>   kindDist(0,2);
 
-    std::vector<std::string> files={"power_up1.glb","power_up2.glb","power_up3.glb"};
-    std::mt19937 rng((unsigned)std::chrono::steady_clock::now().time_since_epoch().count());
-    std::uniform_real_distribution<float> dxy(-950.f,950.f);
-    std::uniform_int_distribution<int> dti(0,2);
-    for(int i=0;i<120;i++){
-        int t=dti(rng);
-        auto o=loader.load(files[t]);
-        o->position.set(dxy(rng),0,dxy(rng));
-        scene.add(o);
-        PowerUp::Type ty = (t==0)?PowerUp::Type::Grow:(t==1)?PowerUp::Type::Faster:PowerUp::Type::Shrink;
-        pums.add(std::move(o), ty);
+    for (int i = 0; i < 120; ++i) {
+        int k = kindDist(rng);
+        auto node = loader.load(powerUpFiles[k]);
+        node->position.set(spawnDist(rng), 0.f, spawnDist(rng));
+        scene.add(node);
+
+        PowerUp::Kind kind = (k==0) ? PowerUp::Kind::Grow
+                           : (k==1) ? PowerUp::Kind::Faster
+                                    : PowerUp::Kind::Shrink;
+
+        powerUps.add(std::move(node), kind);
     }
 
     // trees
-    Trees trees;
-    for(int i=0;i<150;i++){
-        auto t=loader.load("tree_model.glb");
-        t->position.set(dxy(rng),0,dxy(rng));
+    TreeManager trees;
+    for (int i = 0; i < 150; ++i) {
+        auto t = loader.load("tree_model.glb");
+        t->position.set(spawnDist(rng), 0.f, spawnDist(rng));
         scene.add(t);
         trees.add(std::move(t));
     }
 
-    DriveInput input; canvas.addKeyListener(input);
-    std::unique_ptr<Game> game = std::make_unique<Game>(
-        &canvas, &renderer, &scene, &camera,
-        rig.root.get(), rig.chassis.get(), rig.wheels, &input, &pums, &trees);
+    // input
+    InputController input;
+    canvas.addKeyListener(input);
 
-    GameUI ui;
-    WindowSize last=canvas.size();
+    // game
+    auto game = std::make_unique<Game>(canvas, renderer, scene, camera,
+                                       *rig.root, *rig.chassis, rig.wheels,
+                                       input, powerUps, trees);
 
-    auto swapCar = [&](int newIndex){
-        if (newIndex < 0 || newIndex >= (int)carFiles.size()) return;
-        if (newIndex == currentCarIndex) return;
-        // remove old root from scene
+    UIState ui;
+    WindowSize lastSize = canvas.size();
+
+    auto swapVehicle = [&](int newIndex) {
+        if (newIndex < 0 || newIndex >= static_cast<int>(vehicleFiles.size())) return;
+        if (newIndex == currentVehicleIndex) return;
+
         if (rig.root) scene.remove(*rig.root);
-        // build new
-        rig = buildCar(loader, carFiles[newIndex], scene);
-        currentCarIndex = newIndex;
-        // recreate Game so visuals point to new nodes (physics resets on purpose)
-        game = std::make_unique<Game>(&canvas,&renderer,&scene,&camera,
-                                      rig.root.get(), rig.chassis.get(), rig.wheels,
-                                      &input, &pums, &trees);
+        rig = buildVehicle(loader, vehicleFiles[newIndex], scene);
+        currentVehicleIndex = newIndex;
+
+        // Recreate Game so visuals bind to new nodes (physics intentionally reset).
+        game = std::make_unique<Game>(canvas, renderer, scene, camera,
+                                      *rig.root, *rig.chassis, rig.wheels,
+                                      input, powerUps, trees);
     };
 
-    canvas.animate([&]{
-        auto s=canvas.size();
-        if(s.width()!=last.width()||s.height()!=last.height()){
+    canvas.animate([&] {
+        // handle resize
+        auto s = canvas.size();
+        if (s.width() != lastSize.width() || s.height() != lastSize.height()) {
             renderer.setSize(s);
-            camera.aspect=float(s.width())/float(s.height());
-            last=s;
+            camera.aspect = float(s.width())/float(s.height());
+            lastSize = s;
         }
 
-        // menu selection via keys 1/2/3 (works in Menu and Playing)
-        if (input.one)   ui.selected = 0, swapCar(0);
-        if (input.two)   ui.selected = 1, swapCar(1);
-        if (input.three) ui.selected = 2, swapCar(2);
+        // vehicle selection (works in Menu & Playing)
+        if (input.choose1) { ui.selectedVehicle = 0; swapVehicle(0); }
+        if (input.choose2) { ui.selectedVehicle = 1; swapVehicle(1); }
+        if (input.choose3) { ui.selectedVehicle = 2; swapVehicle(2); }
 
         switch (ui.state) {
             case GameState::Menu: {
                 renderer.render(uiScene, *uiCam);
-                if (input.enter) { swapCar(ui.selected); ui.state = GameState::Playing; }
+                if (input.keyEnter) { swapVehicle(ui.selectedVehicle); ui.state = GameState::Playing; }
                 break;
             }
             case GameState::Playing: {
-                if (input.esc) { ui.state = GameState::Paused; break; }
-                if (input.r)   { game->reset(); }
-                game->update();
+                if (input.keyEsc) { ui.state = GameState::Paused; break; }
+                if (input.keyReset) { game->resetWorld(); }
+                game->updateFrame();
                 break;
             }
             case GameState::Paused: {
                 renderer.render(uiScene, *uiCam);
-                if (input.enter) ui.state = GameState::Playing;
-                if (input.r)     { game->reset(); ui.state = GameState::Menu; }
+                if (input.keyEnter) ui.state = GameState::Playing;
+                if (input.keyReset) { game->resetWorld(); ui.state = GameState::Menu; }
                 break;
             }
         }
