@@ -11,6 +11,7 @@
 
 #include "BilSimulator/InputState.hpp"
 #include "BilSimulator/PowerUps.hpp"
+#include "BilSimulator/PowerUpManager.hpp"
 #include "BilSimulator/Trees.hpp"
 #include "BilSimulator/Game.hpp"
 #include "BilSimulator/VehicleSpecs.hpp"

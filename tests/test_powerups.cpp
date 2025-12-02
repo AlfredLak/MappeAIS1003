@@ -4,6 +4,8 @@
 #include "BilSimulator/Game.hpp"
 #include "BilSimulator/InputState.hpp"
 #include "BilSimulator/PowerUps.hpp"
+#include "BilSimulator/PowerUpManager.hpp"
+
 #include <threepp/threepp.hpp>
 
 using namespace threepp;

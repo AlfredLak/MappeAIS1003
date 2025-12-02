@@ -1,12 +1,14 @@
 #pragma once
+#include <threepp/threepp.hpp>
+
 #include "InputState.hpp"
 #include "CameraController.hpp"
 #include "VehiclePhysics.hpp"
 #include "VehicleVisuals.hpp"
 #include "PowerUps.hpp"
+#include "PowerUpManager.hpp"
 #include "Trees.hpp"
 #include "BilSimulator/CollisionSink.hpp"
-#include <threepp/threepp.hpp>
 
 namespace minbil {
 
@@ -145,13 +147,12 @@ private:
     float crashSpeedThreshold_{2.5f};
 };
 
-// glue so PowerUps can call Game
-inline void PowerUp::apply(Game& g) {
-    switch (type_) {
-        case Type::Grow:   g.growCar(1.4f);        break;
-        case Type::Faster: g.faster(1.35f, 1.3f);  break;
-        case Type::Shrink: g.growCar(0.7f);        break;
+    inline void PowerUp::apply(Game& g) {
+        switch (type_) {
+            case Type::Grow:   g.growCar(1.4f);       break;
+            case Type::Faster: g.faster(1.35f, 1.3f); break;
+            case Type::Shrink: g.growCar(0.7f);       break;
+        }
     }
-}
 
 }
