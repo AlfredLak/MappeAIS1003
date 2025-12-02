@@ -11,7 +11,6 @@ using Catch::Approx;
 TEST_CASE("VehicleVisuals spins wheels") {
     auto chassis = Object3D::create();
 
-    // Keep owners alive for the whole test
     std::vector<std::shared_ptr<Object3D>> owned;
     std::vector<Object3D*> wheelPtrs;
     for (int i = 0; i < 4; ++i) {

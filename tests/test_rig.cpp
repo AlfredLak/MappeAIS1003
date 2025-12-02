@@ -2,14 +2,14 @@
 #include <threepp/threepp.hpp>
 #include <memory>
 
-#include "BilSimulator/VehicleRig.hpp"  // or the header where you expose findWheels
+#include "BilSimulator/VehicleRig.hpp"
 
 using namespace threepp;
 
 TEST_CASE("findWheels finds four wheels") {
     auto root = Object3D::create();
 
-    std::vector<std::shared_ptr<Object3D>> owned; // keep alive
+    std::vector<std::shared_ptr<Object3D>> owned;
     const char* names[] = {"wheel_FL","wheel_FR","wheel_BL","wheel_BR"};
     for (auto n : names) {
         owned.push_back(Object3D::create());
@@ -18,6 +18,6 @@ TEST_CASE("findWheels finds four wheels") {
     }
 
     std::vector<Object3D*> out;
-    minbil::findWheels(root.get(), out); // adjust to your helper’s namespace
+    minbil::findWheels(root.get(), out);
     REQUIRE(out.size() == 4);
 }

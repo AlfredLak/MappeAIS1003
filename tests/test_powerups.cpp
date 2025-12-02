@@ -1,52 +1,56 @@
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_approx.hpp>
+
+#include "BilSimulator/Game.hpp"
+#include "BilSimulator/InputState.hpp"
 #include "BilSimulator/PowerUps.hpp"
-#include "BilSimulator/Game.hpp"   // for signatures only
 #include <threepp/threepp.hpp>
-#include <memory>
 
-using namespace minbil;
 using namespace threepp;
-
-namespace {
-    struct FakeGame {
-        float scale{1.f};
-        float maxF{30.f}, accelF{20.f};
-        void growCar(float f) { scale *= f; }
-        void faster(float speedMax, float speedAcc) { maxF *= speedMax; accelF *= speedAcc; }
-    };
-}
+using namespace minbil;
+using Catch::Approx;
 
 TEST_CASE("PowerUps apply correct effects and deactivate") {
-    FakeGame g;
+    auto root    = Object3D::create();
+    auto chassis = Object3D::create();
+    std::vector<Object3D*> wheels;
 
-    auto objGrow = Object3D::create();
-    auto objFast = Object3D::create();
-    auto objShrink = Object3D::create();
+    InputState input;
+    PowerUpManager mgr;
+    Trees trees;
 
-    PowerUp grow(objGrow, PowerUp::Type::Grow);
-    PowerUp fast(objFast, PowerUp::Type::Faster);
-    PowerUp shrink(objShrink, PowerUp::Type::Shrink);
+    // Real Game instance; we never render, so nullptrs are safe here
+    Game game(nullptr, nullptr, nullptr, nullptr,
+              root.get(), chassis.get(), wheels, &input, &mgr, &trees);
 
-    // Directly call apply through a tiny adapter to FakeGame signatures
-    struct Adapter : Game {
-        using Game::Game; // never constructed
-        static void applyGrow(PowerUp& p, FakeGame& g){ p.apply(reinterpret_cast<Game&>(g)); }
-    };
+    auto growObj = Object3D::create();
+    growObj->position.set(0, 0, 0);
+    PowerUp growPU(growObj, PowerUp::Type::Grow);
 
-    // Manually emulate calls:
-    grow.apply(reinterpret_cast<Game&>(g));
-    REQUIRE(g.scale > 1.f);
+    const float sx0 = root->scale.x;
+    growPU.apply(game);
+    REQUIRE(root->scale.x == Approx(sx0 * 1.4f));
+    growPU.hide();
+    REQUIRE_FALSE(growPU.active());
 
-    fast.apply(reinterpret_cast<Game&>(g));
-    REQUIRE(g.maxF > 30.f);
-    REQUIRE(g.accelF > 20.f);
+    auto fastObj = Object3D::create();
+    PowerUp fastPU(fastObj, PowerUp::Type::Faster);
 
-    float before = g.scale;
-    shrink.apply(reinterpret_cast<Game&>(g));
-    REQUIRE(g.scale < before);
+    const float maxF0  = game.physics().maxForward;
+    const float accel0 = game.physics().accelForward;
 
-    // Deactivate hides object
-    grow.hide();
-    REQUIRE_FALSE(grow.active());
-    REQUIRE_FALSE(objGrow->visible);
+    fastPU.apply(game); // multiplies tunables
+    REQUIRE(game.physics().maxForward   == Approx(maxF0  * 1.35f));
+    REQUIRE(game.physics().accelForward == Approx(accel0 * 1.3f));
+    fastPU.hide();
+    REQUIRE_FALSE(fastPU.active());
+
+    auto shrinkObj = Object3D::create();
+    PowerUp shrinkPU(shrinkObj, PowerUp::Type::Shrink);
+
+    const float sx1 = root->scale.x;
+    shrinkPU.apply(game);
+    REQUIRE(root->scale.x == Approx(sx1 * 0.7f));
+    shrinkPU.hide();
+    REQUIRE_FALSE(shrinkPU.active());
 }

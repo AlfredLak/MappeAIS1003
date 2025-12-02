@@ -2,10 +2,8 @@
 
 namespace minbil {
 
-    class CollisionSink {
-    public:
+    struct CollisionSink {
         virtual ~CollisionSink() = default;
-
         virtual void onTreeCollision(float impactSpeed) = 0;
     };
 
