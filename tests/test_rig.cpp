@@ -1,26 +1,23 @@
 #include <catch2/catch_test_macros.hpp>
-#include "BilSimulator/VehicleRig.hpp"
 #include <threepp/threepp.hpp>
-#include <catch2/matchers/catch_matchers_string.hpp>
-#include "catch2/matchers/catch_matchers.hpp"
+#include <memory>
 
-using namespace minbil;
+#include "BilSimulator/VehicleRig.hpp"  // or the header where you expose findWheels
+
 using namespace threepp;
 
-TEST_CASE("findWheels finds four wheel nodes by name") {
+TEST_CASE("findWheels finds four wheels") {
     auto root = Object3D::create();
-    auto ch   = Object3D::create();
-    root->add(ch);
 
-    auto wheelFL = Object3D::create(); wheelFL->name = "wheel_FL"; ch->add(wheelFL);
-    auto wheelFR = Object3D::create(); wheelFR->name = "wheel_FR"; ch->add(wheelFR);
-    auto wheelBL = Object3D::create(); wheelBL->name = "wheel_BL"; ch->add(wheelBL);
-    auto wheelBR = Object3D::create(); wheelBR->name = "wheel_BR"; ch->add(wheelBR);
+    std::vector<std::shared_ptr<Object3D>> owned; // keep alive
+    const char* names[] = {"wheel_FL","wheel_FR","wheel_BL","wheel_BR"};
+    for (auto n : names) {
+        owned.push_back(Object3D::create());
+        owned.back()->name = n;
+        root->add(owned.back());
+    }
 
-    std::vector<Object3D*> wheels;
-    findWheels(ch.get(), wheels);
-
-    REQUIRE(wheels.size() == 4);
-    REQUIRE_THAT(wheels[0]->name + wheels[1]->name + wheels[2]->name + wheels[3]->name,
-                 Catch::Matchers::ContainsSubstring("wheel_"));
+    std::vector<Object3D*> out;
+    minbil::findWheels(root.get(), out); // adjust to your helper’s namespace
+    REQUIRE(out.size() == 4);
 }

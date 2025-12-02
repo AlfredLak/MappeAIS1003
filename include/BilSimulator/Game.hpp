@@ -53,6 +53,7 @@ namespace minbil {
             VehiclePhysics::InputLite in{
                 input_->forward, input_->backward, input_->left, input_->right, input_->drift
             };
+
             CarPose pose = physics_.step(in, dt);
 
             carRoot_->position.copy(pose.position);
@@ -65,7 +66,9 @@ namespace minbil {
 
             if (input_->camToggle && !prevCamToggle_) cameraController_.cycle();
             prevCamToggle_ = input_->camToggle;
-            cameraController_.update(carRoot_->position, pose.yaw);
+            cameraController_.update(carRoot_->position, 0.f);
+
+            if (!renderer_ || !scene_ || !camera_) return;
 
             renderer_->render(*scene_, *camera_);
         }
