@@ -10,6 +10,7 @@ namespace minbil {
 
 class VehicleVisuals {
 public:
+    VehicleVisuals() = default;
     VehicleVisuals(threepp::Object3D* chassis, const std::vector<threepp::Object3D*>& wheels)
         : chassis_(chassis), wheels_(wheels) {}
 

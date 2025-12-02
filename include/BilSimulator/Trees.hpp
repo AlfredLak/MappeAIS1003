@@ -9,7 +9,6 @@ namespace minbil {
     class Trees {
     public:
         inline void setCollisionSink(CollisionSink* sink) { sink_ = sink; }
-
         inline void add(std::shared_ptr<threepp::Object3D> t) { trees_.push_back(std::move(t)); }
 
         // 2D circle collision against car position; forwards hit to sink.
@@ -28,7 +27,7 @@ namespace minbil {
             }
         }
 
-        inline void setRadius(float r) { radius_ = r; }
+        inline void setCollisionRadius(float r) { radius_ = r; }
         inline float radius() const { return radius_; }
         inline const std::vector<std::shared_ptr<threepp::Object3D>>& all() const { return trees_; }
 

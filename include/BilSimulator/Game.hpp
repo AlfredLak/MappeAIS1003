@@ -40,7 +40,6 @@ public:
         lastTime_ = now;
         if (dt > 0.033f) dt = 0.033f;
 
-        // remember safe position
         lastSafePosition_ = carRoot_->position;
 
         // step physics

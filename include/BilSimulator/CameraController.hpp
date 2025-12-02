@@ -1,4 +1,5 @@
 #pragma once
+
 #include <threepp/threepp.hpp>
 #include <cmath>
 
@@ -12,7 +13,7 @@ public:
 
     void attach(threepp::PerspectiveCamera* cam) { camera_ = cam; }
 
-    void setMode(CameraMode m) { mode_ = m; }
+    void setMode(CameraMode mode) { mode_ = mode; }
 
     CameraMode mode() const { return mode_; }
 
@@ -30,26 +31,26 @@ public:
         threepp::Vector3 desired;
         switch (mode_) {
             case CameraMode::Behind: {
-                const float back = 6.f, h = 3.f;
+                const float back = 6.f, height = 3.f;
                 desired.set(carPos.x - std::sin(carYaw) * back,
-                            carPos.y + h,
+                            carPos.y + height,
                             carPos.z - std::cos(carYaw) * back);
                 lookAt_ = carPos;
                 break;
             }
             case CameraMode::Front: {
-                const float front = 6.f, h = 3.f;
+                const float front = 6.f, height = 3.f;
                 desired.set(carPos.x + std::sin(carYaw) * front,
-                            carPos.y + h,
+                            carPos.y + height,
                             carPos.z + std::cos(carYaw) * front);
                 lookAt_ = carPos;
                 break;
             }
             case CameraMode::Side: {
-                const float side = 5.f, h = 3.f;
+                const float side = 5.f, height = 3.f;
                 const float sideYaw = carYaw - threepp::math::PI/2.f;
                 desired.set(carPos.x - std::sin(sideYaw) * side,
-                            carPos.y + h,
+                            carPos.y + height,
                             carPos.z - std::cos(sideYaw) * side);
                 lookAt_ = carPos;
                 break;

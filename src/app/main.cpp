@@ -13,6 +13,7 @@
 #include "BilSimulator/PowerUps.hpp"
 #include "BilSimulator/Trees.hpp"
 #include "BilSimulator/Game.hpp"
+#include "BilSimulator/VehicleSpecs.hpp"
 
 using namespace threepp;
 using namespace minbil;
@@ -173,6 +174,11 @@ int main() {
         rig.root.get(), rig.chassis.get(), rig.wheels,
         &input, &powerUps, &trees
     );
+
+    {
+        const auto tune = tuningFor(carFiles[currentCarIndex]);
+        game->applyVehicleTuning(tune.accelF, tune.accelB, tune.maxF, tune.maxB);
+    }
 
     trees.setCollisionSink(game.get());
 
