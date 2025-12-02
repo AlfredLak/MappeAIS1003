@@ -135,9 +135,9 @@ int main() {
     PowerUpManager powerUps;
     {
         std::vector puFiles = {
-            model("power_up1.glb"),
-            model("power_up2.glb"),
-            model("power_up3.glb")
+            model("muffin.glb"),
+            model("soda.glb"),
+            model("mushroom.glb")
         };
         std::mt19937 rng((unsigned)std::chrono::steady_clock::now().time_since_epoch().count());
         std::uniform_real_distribution<float> dxy(-(kPlaneSize/2.f - 50.f), (kPlaneSize/2.f - 50.f));
