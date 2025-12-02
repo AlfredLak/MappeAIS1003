@@ -19,6 +19,7 @@ add_executable(BilsimTest
 )
 
 target_link_libraries(BilsimTest PRIVATE Catch2::Catch2WithMain minbil_core)
+target_compile_definitions(BilsimTest PRIVATE ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets")
 
 include(CTest)
 include(Catch)

@@ -8,14 +8,13 @@ using namespace minbil;
 using namespace threepp;
 
 namespace {
-    // Minimal fake Game that records effects (no rendering)
     struct FakeGame {
         float scale{1.f};
         float maxF{30.f}, accelF{20.f};
         void growCar(float f) { scale *= f; }
         void faster(float speedMax, float speedAcc) { maxF *= speedMax; accelF *= speedAcc; }
     };
-} // namespace
+}
 
 TEST_CASE("PowerUps apply correct effects and deactivate") {
     FakeGame g;

@@ -6,7 +6,6 @@ add_custom_command(TARGET BilSimulator POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/assets $<TARGET_FILE_DIR:BilSimulator>/assets)
 
-# On Windows, copy DLLs if needed (adjust your pathing if different)
 if (WIN32)
     file(GLOB RUNTIME_DLLS "${CMAKE_BINARY_DIR}/bin/*.dll")
     foreach(dll ${RUNTIME_DLLS})
@@ -15,3 +14,5 @@ if (WIN32)
                 "${dll}" $<TARGET_FILE_DIR:BilSimulator>)
     endforeach()
 endif()
+
+target_compile_definitions(BilSimulator PRIVATE ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets")
