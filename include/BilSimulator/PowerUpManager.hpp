@@ -15,16 +15,16 @@ namespace minbil {
         }
 
         inline void update(Game& game, threepp::Object3D* car) {
-            const auto& p = car->position;
-            for (auto& pu : powerUps_) {
-                if (!pu.active()) continue;
-                auto* o = pu.object(); if (!o) continue;
+            const auto& position = car->position;
+            for (auto& power_up : powerUps_) {
+                if (!power_up.active()) continue;
+                auto* object = power_up.object(); if (!object) continue;
 
-                const float dx = p.x - o->position.x;
-                const float dz = p.z - o->position.z;
+                const float dx = position.x - object->position.x;
+                const float dz = position.z - object->position.z;
                 if (dx*dx + dz*dz < pickupRadiusSquared_) {
-                    pu.apply(game);
-                    pu.hide();
+                    power_up.apply(game);
+                    power_up.hide();
                 }
             }
         }
