@@ -4,7 +4,6 @@ set(CMAKE_CXX_STANDARD 20)
 
 include(FetchContent)
 
-# --- Dependencies: assimp + threepp ---
 FetchContent_DECLARE(assimp
         GIT_REPOSITORY https://github.com/assimp/assimp.git
         GIT_TAG        v6.0.2
@@ -20,7 +19,13 @@ FetchContent_DECLARE(threepp
 )
 FetchContent_MakeAvailable(threepp)
 
-# Header-only core as an INTERFACE library
+FetchContent_Declare(
+        Catch2
+        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+        GIT_TAG v3.6.0
+)
+FetchContent_MakeAvailable(Catch2)
+
 add_library(minbil_core INTERFACE)
 target_include_directories(minbil_core INTERFACE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(minbil_core INTERFACE threepp::threepp assimp)

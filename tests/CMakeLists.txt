@@ -1,11 +1,4 @@
-include(FetchContent)
-FetchContent_DECLARE(Catch2
-        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-        GIT_TAG        v3.6.0
-)
-FetchContent_MakeAvailable(Catch2)
-
-enable_testing()
+cmake_minimum_required(VERSION 3.21)
 
 add_executable(BilsimTest
         test_camera.cpp
@@ -18,9 +11,31 @@ add_executable(BilsimTest
         test_game.cpp
 )
 
-target_link_libraries(BilsimTest PRIVATE Catch2::Catch2WithMain minbil_core)
-target_compile_definitions(BilsimTest PRIVATE ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets")
+target_include_directories(BilsimTest PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_compile_definitions(BilsimTest PRIVATE
+        ASSETS_DIR="${PROJECT_SOURCE_DIR}/assets"
+)
+
+target_link_libraries(BilsimTest
+        PRIVATE
+        Catch2::Catch2WithMain
+        threepp
+        assimp
+)
+
+if (WIN32)
+    add_custom_command(TARGET BilsimTest POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:BilsimTest> $<TARGET_FILE_DIR:BilsimTest>
+            COMMAND_EXPAND_LISTS
+    )
+endif()
 
 include(CTest)
-include(Catch)
-catch_discover_tests(BilsimTest)
+if (BUILD_TESTING)
+    add_test(NAME BilsimTest_All
+            COMMAND BilsimTest --durations yes)
+endif()

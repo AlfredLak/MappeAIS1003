@@ -1,65 +1,77 @@
 #pragma once
 #include <threepp/threepp.hpp>
+#include <cmath>
 
 namespace minbil {
 
-enum class CameraMode { Behind, SideRight, Front };
+enum class CameraMode { Behind = 0, Side = 1, Front = 2 };
 
 class CameraController {
 public:
     CameraController() = default;
 
-    inline void attach(threepp::PerspectiveCamera* cam) { cam_ = cam; }
-    inline void setMode(CameraMode m) { mode_ = m; }
-    inline CameraMode mode() const { return mode_; }
+    void attach(threepp::PerspectiveCamera* cam) { camera_ = cam; }
 
-    inline void cycle() {
+    void setMode(CameraMode m) { mode_ = m; }
+
+    CameraMode mode() const { return mode_; }
+
+    void cycle() {
         switch (mode_) {
-            case CameraMode::Behind:   mode_ = CameraMode::SideRight; break;
-            case CameraMode::SideRight:mode_ = CameraMode::Front;     break;
-            case CameraMode::Front:    mode_ = CameraMode::Behind;    break;
+            case CameraMode::Behind: mode_ = CameraMode::Side;  break;
+            case CameraMode::Side:   mode_ = CameraMode::Front; break;
+            case CameraMode::Front:  mode_ = CameraMode::Behind;break;
         }
     }
 
-    inline void update(const threepp::Vector3& carPos, float carYaw) {
-        if (!cam_) return;
+    void update(const threepp::Vector3& carPos, float carYaw) {
+        if (!camera_) return;
 
         threepp::Vector3 desired;
         switch (mode_) {
             case CameraMode::Behind: {
-                float back = 6.f, h = 3.f;
+                const float back = 6.f, h = 3.f;
                 desired.set(carPos.x - std::sin(carYaw) * back,
                             carPos.y + h,
                             carPos.z - std::cos(carYaw) * back);
-                cam_->position.copy(desired);
-                cam_->lookAt(carPos);
+                lookAt_ = carPos;
                 break;
             }
             case CameraMode::Front: {
-                float front = 6.f, h = 3.f;
+                const float front = 6.f, h = 3.f;
                 desired.set(carPos.x + std::sin(carYaw) * front,
                             carPos.y + h,
                             carPos.z + std::cos(carYaw) * front);
-                cam_->position.copy(desired);
-                cam_->lookAt(carPos);
+                lookAt_ = carPos;
                 break;
             }
-            case CameraMode::SideRight: {
-                float side = 5.f, h = 3.f;
-                float sideYaw = carYaw - threepp::math::PI / 2.f;
+            case CameraMode::Side: {
+                const float side = 5.f, h = 3.f;
+                const float sideYaw = carYaw - threepp::math::PI/2.f;
                 desired.set(carPos.x - std::sin(sideYaw) * side,
                             carPos.y + h,
                             carPos.z - std::cos(sideYaw) * side);
-                cam_->position.copy(desired);
-                cam_->lookAt(carPos);
+                lookAt_ = carPos;
                 break;
             }
         }
+
+        const float follow = 10.f; // higher = snappier
+        const double now = clock_.getElapsedTime();
+        const float dt = static_cast<float>(now - lastT_);
+        lastT_ = now;
+        const float alpha = 1.f - std::exp(-follow * dt);
+
+        camera_->position.lerp(desired, alpha);
+        camera_->lookAt(lookAt_);
     }
 
 private:
-    threepp::PerspectiveCamera* cam_{nullptr};
+    threepp::PerspectiveCamera* camera_{nullptr};
     CameraMode mode_{CameraMode::Behind};
+    threepp::Vector3 lookAt_{0,0,0};
+    threepp::Clock clock_{};
+    double lastT_{clock_.getElapsedTime()};
 };
 
 }
