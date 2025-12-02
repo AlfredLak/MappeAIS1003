@@ -135,8 +135,11 @@ int main() {
     PowerUpManager powerUps;
     {
         std::vector puFiles = {
+            // Grow
             model("muffin.glb"),
+            // Faster
             model("soda.glb"),
+            // Smaller
             model("mushroom.glb")
         };
         std::mt19937 rng((unsigned)std::chrono::steady_clock::now().time_since_epoch().count());
@@ -223,7 +226,7 @@ int main() {
                 break;
             }
             case AppState::Playing: {
-                if (input.escape) { appState = AppState::Paused; break; }
+                if (input.pause) { appState = AppState::Paused; break; }
                 if (input.reset)  { game->reset(); }
                 game->updateFrame();
                 break;

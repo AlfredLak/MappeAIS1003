@@ -6,7 +6,7 @@ namespace minbil {
     class InputState : public threepp::KeyListener {
     public:
         bool forward{false}, backward{false}, left{false}, right{false}, drift{false};
-        bool enter{false}, escape{false}, reset{false};
+        bool enter{false}, pause{false}, reset{false};
         bool camToggle{false};
         bool select1{false}, select2{false}, select3{false};
 
@@ -22,7 +22,7 @@ namespace minbil {
                 case Key::V: camToggle = true; break;
 
                 case Key::ENTER: enter = true; break;
-                case Key::ESCAPE: escape = true; break;
+                case Key::P: pause = true; break;
                 case Key::R: reset = true; break;
 
                 case Key::NUM_1: select1 = true; break;
@@ -44,7 +44,7 @@ namespace minbil {
                 case Key::V: camToggle = false; break;
 
                 case Key::ENTER: enter = false; break;
-                case Key::ESCAPE: escape = false; break;
+                case Key::P: pause = false; break;
                 case Key::R: reset = false; break;
 
                 case Key::NUM_1: select1 = false; break;
