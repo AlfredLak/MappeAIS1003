@@ -98,6 +98,7 @@ https://github.com/assimp/assimp
 
 https://github.com/catchorg/Catch2
 
+Assets are from https://kenney.nl/
 
 I have not copied the code of any other repository in this project. I have however used ChatGPT 5.0 as a helper throughout
 the entire project for bugspotting and suggesting fixes, as well as commenting on code.
