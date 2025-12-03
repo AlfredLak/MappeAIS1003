@@ -45,7 +45,7 @@ public:
         lastSafePosition_ = carRoot_->position;
 
         // step physics
-        VehiclePhysics::InputLite in{ input_->forward, input_->backward, input_->left, input_->right, input_->drift };
+        const VehiclePhysics::InputLite in{ input_->forward, input_->backward, input_->left, input_->right, input_->drift };
         const CarPose pose = physics_.step(in, dt);
 
         // apply to scene graph
@@ -68,7 +68,7 @@ public:
         }
     }
 
-    inline void reset() {
+    void reset() {
         physics_.setPosition({0,0,0});
         physics_.hardStop();
         carRoot_->position.set(0,0,0);

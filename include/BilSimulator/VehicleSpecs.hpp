@@ -1,4 +1,6 @@
 #pragma once
+#include <iostream>
+
 namespace MyCar {
     struct VehicleTuning { float accelF, accelB, maxF, maxB; };
     inline VehicleTuning tuningFor(const std::string& modelPath) {

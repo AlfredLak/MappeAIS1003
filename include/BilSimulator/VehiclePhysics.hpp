@@ -31,33 +31,36 @@ public:
     float normalSlipFactor{0.45f}, normalKick{18.f};
 
     float airDrag{0.05f}, wheelRadius{0.35f};
-
+    //Simple struct for the main inputs for controlling the car model
     struct InputLite { bool forward{}, backward{}, left{}, right{}, drift{}; };
 
     CarPose step(const InputLite& input, float dt){
         CarPose pose{};
 
-        float fx=std::sin(yaw_), fz=std::cos(yaw_), rx=std::cos(yaw_), rz=-std::sin(yaw_);
+        const float fx=std::sin(yaw_);
+        const float fz=std::cos(yaw_);
+        const float rx=std::cos(yaw_);
+        const float rz=-std::sin(yaw_);
         float forwardV = velX_*fx + velZ_*fz;
         float lateralV = velX_*rx + velZ_*rz;
 
-        float inputTurn = (input.left?+maxSteer:0.f) + (input.right?-maxSteer:0.f);
-        bool onlyBrake = input.backward && !input.forward && !input.left && !input.right;
-        bool reversing = (forwardV < -0.05f);
+        const float inputTurn = (input.left?+maxSteer:0.f) + (input.right?-maxSteer:0.f);
+        const bool onlyBrake = input.backward && !input.forward && !input.left && !input.right;
+        const bool reversing = (forwardV < -0.05f);
         float targetTurn = reversing ? (reverseSteerScale*inputTurn) : inputTurn;
         if (onlyBrake) targetTurn = 0.f;
 
-        float response = (std::abs(targetTurn)>0)
+        const float response = (std::abs(targetTurn)>0)
                          ? (reversing?reverseSteerAccel:steerAccel)
                          : (reversing?reverseSteerFriction:steerFriction);
-        float alpha = 1.f - std::exp(-response*dt);
+        const float alpha = 1.f - std::exp(-response*dt);
         yawRate_ += (targetTurn - yawRate_) * alpha;
         if (reversing){
             if (yawRate_> reverseSteerClamp) yawRate_= reverseSteerClamp;
             if (yawRate_<-reverseSteerClamp) yawRate_=-reverseSteerClamp;
         }
 
-        bool braking = input.backward && (forwardV>0.05f);
+        const bool braking = input.backward && (forwardV>0.05f);
         if (input.forward) forwardV += accelForward*dt;
         if (input.backward){
             if (forwardV>0){ forwardV -= brakeForce*dt; if (forwardV<0) forwardV=0; }

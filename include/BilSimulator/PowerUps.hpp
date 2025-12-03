@@ -9,14 +9,14 @@ namespace MyCar {
     class PowerUp {
     public:
         enum class Type { Grow, Faster, Shrink };
-
+        // store the scene object and its effect type
         explicit PowerUp(std::shared_ptr<threepp::Object3D> object, Type type)
             : object_(std::move(object)), type_(type) {}
 
         threepp::Object3D* object() { return object_.get(); }
-        bool active() const { return active_; }
-        Type type() const { return type_; }
-
+        [[nodiscard]] bool active() const { return active_; }
+        [[nodiscard]] Type type() const { return type_; }
+        // mark as collected and hide from rendering
         void hide() { active_ = false; if (object_) object_->visible = false; }
 
         void apply(Game& game) const;

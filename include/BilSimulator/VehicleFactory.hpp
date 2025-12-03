@@ -17,7 +17,7 @@ namespace MyCar {
 
     struct VehicleFactory {
 
-        static inline CarRig buildCar(threepp::AssimpLoader& loader,
+        static CarRig buildCar(threepp::AssimpLoader& loader,
                                       const std::string& modelFile,
                                       threepp::Scene& scene) {
             CarRig rig;
