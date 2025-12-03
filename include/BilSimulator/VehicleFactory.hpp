@@ -7,7 +7,7 @@
 #include <threepp/threepp.hpp>
 #include <threepp/loaders/AssimpLoader.hpp>
 
-namespace minbil {
+namespace MyCar {
 
     struct CarRig {
         std::shared_ptr<threepp::Object3D> root;
@@ -38,10 +38,10 @@ namespace minbil {
         }
 
     private:
-        static inline void findWheels(threepp::Object3D* root, std::vector<threepp::Object3D*>& out) {
+        static void findWheels(threepp::Object3D* root, std::vector<threepp::Object3D*>& out) {
             static const char* names[] = {"wheel_FL","wheel_FR","wheel_BL","wheel_BR"};
             root->traverse([&](threepp::Object3D& o){
-                for (auto n : names) {
+                for (const auto n : names) {
                     if (o.name == n) { out.push_back(&o); break; }
                 }
             });

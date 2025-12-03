@@ -4,7 +4,7 @@
 #include <threepp/threepp.hpp>
 
 using namespace threepp;
-using namespace minbil;
+using namespace MyCar;
 
 struct FakeSink : public CollisionSink {
     int hits{0};

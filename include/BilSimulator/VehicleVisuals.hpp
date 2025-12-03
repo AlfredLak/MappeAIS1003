@@ -6,7 +6,7 @@
 
 #include "BilSimulator/VehiclePhysics.hpp"
 
-namespace minbil {
+namespace MyCar {
 
 class VehicleVisuals {
 public:
@@ -27,17 +27,17 @@ public:
         float yawTarget=0.f, offsetTarget=0.f;
         if (!pose.reversing){
             float safeV = (std::abs(pose.forwardVel)>1e-3f)? pose.forwardVel : (pose.forwardVel>=0? 1e-3f:-1e-3f);
-            float slipAngle = std::atan2(pose.lateralVel, safeV);
+            float slipAngle = std::atan2(pose.lateralVelocity, safeV);
             if (pose.drifting){
                 float boost = 1.f + 0.8f*std::min(std::abs(pose.forwardVel)/15.f, 1.5f);
                 slipAngle *= boost;
                 yawTarget   =  yawDriftScale * slipAngle;
-                offsetTarget= -lateralOffsetDrift * std::clamp(pose.lateralVel/10.f,-1.f,1.f);
+                offsetTarget= -lateralOffsetDrift * std::clamp(pose.lateralVelocity/10.f,-1.f,1.f);
             } else if (pose.slipping){
                 float boost = 1.f + 0.55f*std::min(std::abs(pose.forwardVel)/15.f, 1.25f);
                 slipAngle *= boost;
                 yawTarget   =  yawSlipScale * slipAngle;
-                offsetTarget= -lateralOffsetSlip * std::clamp(pose.lateralVel/10.f,-1.f,1.f);
+                offsetTarget= -lateralOffsetSlip * std::clamp(pose.lateralVelocity/10.f,-1.f,1.f);
             }
         }
 

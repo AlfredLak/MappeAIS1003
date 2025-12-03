@@ -10,7 +10,7 @@
 #include "Trees.hpp"
 #include "BilSimulator/CollisionSink.hpp"
 
-namespace minbil {
+namespace MyCar {
 
 class Game : public CollisionSink {
 public:
@@ -35,10 +35,10 @@ public:
         lastSafePosition_ = carRoot_->position;
     }
 
-    inline void updateFrame() {
+    void updateFrame() {
         // timestep
         const double now = clock_.getElapsedTime();
-        float dt = static_cast<float>(now - lastTime_);
+        auto dt = static_cast<float>(now - lastTime_);
         lastTime_ = now;
         if (dt > 0.033f) dt = 0.033f;
 
@@ -147,11 +147,11 @@ private:
     float crashSpeedThreshold_{2.5f};
 };
 
-    inline void PowerUp::apply(Game& g) {
+    inline void PowerUp::apply(Game& game) const {
         switch (type_) {
-            case Type::Grow:   g.growCar(1.4f);       break;
-            case Type::Faster: g.faster(1.35f, 1.3f); break;
-            case Type::Shrink: g.growCar(0.7f);       break;
+            case Type::Grow:   game.growCar(1.4f);       break;
+            case Type::Faster: game.faster(1.35f, 1.3f); break;
+            case Type::Shrink: game.growCar(0.7f);       break;
         }
     }
 

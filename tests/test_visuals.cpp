@@ -18,9 +18,9 @@ TEST_CASE("VehicleVisuals spins wheels") {
         wheelPtrs.push_back(owned.back().get());
     }
 
-    minbil::VehicleVisuals visuals(chassis.get(), wheelPtrs);
+    MyCar::VehicleVisuals visuals(chassis.get(), wheelPtrs);
 
-    minbil::CarPose pose{};
+    MyCar::CarPose pose{};
     pose.wheelSpinDelta = 0.5f;
 
     visuals.apply(1.f / 60.f, pose);

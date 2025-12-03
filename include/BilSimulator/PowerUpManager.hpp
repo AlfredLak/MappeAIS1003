@@ -4,36 +4,35 @@
 #include <memory>
 #include "BilSimulator/PowerUps.hpp"
 
-namespace minbil {
+namespace MyCar {
 
-    class Game; // fwd
+    class Game;
 
     class PowerUpManager {
     public:
-        inline void add(std::shared_ptr<threepp::Object3D> object, PowerUp::Type type) {
+        void add(std::shared_ptr<threepp::Object3D> object, PowerUp::Type type) {
             powerUps_.emplace_back(std::move(object), type);
         }
 
-        inline void update(Game& game, threepp::Object3D* car) {
+        void update(Game& game, const threepp::Object3D* car) {
             const auto& position = car->position;
             for (auto& power_up : powerUps_) {
                 if (!power_up.active()) continue;
-                auto* object = power_up.object(); if (!object) continue;
+                const auto* object = power_up.object(); if (!object) continue;
 
                 const float dx = position.x - object->position.x;
-                const float dz = position.z - object->position.z;
-                if (dx*dx + dz*dz < pickupRadiusSquared_) {
+                if (const float dz = position.z - object->position.z; dx*dx + dz*dz < pickupRadiusSquared_) {
                     power_up.apply(game);
                     power_up.hide();
                 }
             }
         }
 
-        inline void setPickupRadius(float r) { pickupRadiusSquared_ = r*r; }
+        void setPickupRadius(const float r) { pickupRadiusSquared_ = r*r; }
 
     private:
         std::vector<PowerUp> powerUps_;
-        float pickupRadiusSquared_{2.25f}; // default = 1.5m radius
+        float pickupRadiusSquared_{2.25f}; // default pickup radius
     };
 
 }

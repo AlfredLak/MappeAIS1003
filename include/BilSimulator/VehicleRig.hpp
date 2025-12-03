@@ -4,7 +4,7 @@
 #include <memory>
 #include <vector>
 
-namespace minbil {
+namespace MyCar {
 
     inline void findWheels(threepp::Object3D* root, std::vector<threepp::Object3D*>& out){
         const char* names[]={"wheel_FL","wheel_FR","wheel_BL","wheel_BR"};

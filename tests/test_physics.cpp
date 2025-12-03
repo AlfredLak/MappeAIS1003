@@ -2,7 +2,7 @@
 #include <catch2/catch_approx.hpp>
 #include "BilSimulator/VehiclePhysics.hpp"
 
-using namespace minbil;
+using namespace MyCar;
 
 static void stepFor(VehiclePhysics& phys, const VehiclePhysics::InputLite& in, float seconds, float dt=1.f/120.f) {
     int steps = static_cast<int>(seconds / dt);
@@ -52,5 +52,5 @@ TEST_CASE("Drift increases lateral velocity") {
     in.drift = true;
     auto poseDrift = phys.step(in, 1.f/60.f);
 
-    REQUIRE(std::abs(poseDrift.lateralVel) > std::abs(poseNoDrift.lateralVel));
+    REQUIRE(std::abs(poseDrift.lateralVelocity) > std::abs(poseNoDrift.lateralVelocity));
 }

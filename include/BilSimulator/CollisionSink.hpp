@@ -1,6 +1,6 @@
 #pragma once
 
-namespace minbil {
+namespace MyCar {
 
     struct CollisionSink {
         virtual ~CollisionSink() = default;

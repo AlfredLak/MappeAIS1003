@@ -17,7 +17,7 @@
 #include "BilSimulator/VehicleFactory.hpp"
 
 using namespace threepp;
-using namespace minbil;
+using namespace MyCar;
 
 #ifndef ASSETS_DIR
 #  define ASSETS_DIR "./assets"
