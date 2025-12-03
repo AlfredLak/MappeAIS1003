@@ -2,24 +2,24 @@
 #include <threepp/threepp.hpp>
 #include <memory>
 
-namespace minbil {
+namespace MyCar {
 
     class Game;
 
     class PowerUp {
     public:
         enum class Type { Grow, Faster, Shrink };
-
+        // store the scene object and its effect type
         explicit PowerUp(std::shared_ptr<threepp::Object3D> object, Type type)
             : object_(std::move(object)), type_(type) {}
 
-        inline threepp::Object3D* object() { return object_.get(); }
-        inline bool active() const { return active_; }
-        inline Type type() const { return type_; }
+        threepp::Object3D* object() { return object_.get(); }
+        [[nodiscard]] bool active() const { return active_; }
+        [[nodiscard]] Type type() const { return type_; }
+        // mark as collected and hide from rendering
+        void hide() { active_ = false; if (object_) object_->visible = false; }
 
-        inline void hide() { active_ = false; if (object_) object_->visible = false; }
-
-        void apply(Game& game);
+        void apply(Game& game) const;
 
     private:
         std::shared_ptr<threepp::Object3D> object_;

@@ -3,12 +3,12 @@
 #include <algorithm>
 #include <cmath>
 
-namespace minbil {
+namespace MyCar {
 
 struct CarPose {
     threepp::Vector3 position{};
     float yaw{0};
-    float forwardVel{0}, lateralVel{0};
+    float forwardVelocity{0}, lateralVelocity{0};
     float yawRate{0};
     bool reversing{false};
     bool drifting{false};
@@ -31,33 +31,36 @@ public:
     float normalSlipFactor{0.45f}, normalKick{18.f};
 
     float airDrag{0.05f}, wheelRadius{0.35f};
-
+    //Simple struct for the main inputs for controlling the car model
     struct InputLite { bool forward{}, backward{}, left{}, right{}, drift{}; };
 
-    inline CarPose step(const InputLite& input, float dt){
+    CarPose step(const InputLite& input, float dt){
         CarPose pose{};
 
-        float fx=std::sin(yaw_), fz=std::cos(yaw_), rx=std::cos(yaw_), rz=-std::sin(yaw_);
+        const float fx=std::sin(yaw_);
+        const float fz=std::cos(yaw_);
+        const float rx=std::cos(yaw_);
+        const float rz=-std::sin(yaw_);
         float forwardV = velX_*fx + velZ_*fz;
         float lateralV = velX_*rx + velZ_*rz;
 
-        float inputTurn = (input.left?+maxSteer:0.f) + (input.right?-maxSteer:0.f);
-        bool onlyBrake = input.backward && !input.forward && !input.left && !input.right;
-        bool reversing = (forwardV < -0.05f);
+        const float inputTurn = (input.left?+maxSteer:0.f) + (input.right?-maxSteer:0.f);
+        const bool onlyBrake = input.backward && !input.forward && !input.left && !input.right;
+        const bool reversing = (forwardV < -0.05f);
         float targetTurn = reversing ? (reverseSteerScale*inputTurn) : inputTurn;
         if (onlyBrake) targetTurn = 0.f;
 
-        float response = (std::abs(targetTurn)>0)
+        const float response = (std::abs(targetTurn)>0)
                          ? (reversing?reverseSteerAccel:steerAccel)
                          : (reversing?reverseSteerFriction:steerFriction);
-        float alpha = 1.f - std::exp(-response*dt);
+        const float alpha = 1.f - std::exp(-response*dt);
         yawRate_ += (targetTurn - yawRate_) * alpha;
         if (reversing){
             if (yawRate_> reverseSteerClamp) yawRate_= reverseSteerClamp;
             if (yawRate_<-reverseSteerClamp) yawRate_=-reverseSteerClamp;
         }
 
-        bool braking = input.backward && (forwardV>0.05f);
+        const bool braking = input.backward && (forwardV>0.05f);
         if (input.forward) forwardV += accelForward*dt;
         if (input.backward){
             if (forwardV>0){ forwardV -= brakeForce*dt; if (forwardV<0) forwardV=0; }
@@ -83,19 +86,19 @@ public:
                 lateralV += sgn * driftKick * std::abs(yawRate_) * g * dt;
             }
         } else if (normalSlip){
-            float sp = std::clamp(std::abs(forwardV)/15.f,0.f,1.5f);
+            const float sp = std::clamp(std::abs(forwardV)/15.f,0.f,1.5f);
             grip = gripNormal / (1.f + normalSlipFactor*sp);
-            float sgn = (yawRate_>=0)? 1.f : -1.f;
+            const float sgn = (yawRate_>=0)? 1.f : -1.f;
             lateralV += sgn * normalKick * std::abs(yawRate_) * (0.5f+0.5f*sp) * dt;
         }
 
         if (reversing && !(input.left||input.right)) grip = reverseGrip;
         if (braking){ grip = std::max(grip, 40.f); yawRate_ *= (1.f - std::min(1.f, 8.f*dt)); }
 
-        float latA = 1.f-std::exp(-grip*dt);
+        const float latA = 1.f-std::exp(-grip*dt);
         lateralV += (0.f - lateralV) * latA;
 
-        float air = std::max(0.f, 1.f - airDrag*dt);
+        const float air = std::max(0.f, 1.f - airDrag*dt);
         forwardV*=air; lateralV*=air;
 
         velX_ = fx*forwardV + rx*lateralV;
@@ -119,8 +122,8 @@ public:
 
         pose.position = position_;
         pose.yaw = yaw_;
-        pose.forwardVel = forwardV;
-        pose.lateralVel = lateralV;
+        pose.forwardVelocity = forwardV;
+        pose.lateralVelocity = lateralV;
         pose.yawRate = yawRate_;
         pose.reversing = reversing;
         pose.drifting = allowDrift;
@@ -129,10 +132,10 @@ public:
         return pose;
     }
 
-    inline void setPosition(const threepp::Vector3& p){ position_=p; }
-    inline void hardStop(){ velX_=0; velZ_=0; }
-    inline const threepp::Vector3& position() const { return position_; }
-    inline float speed() const { return std::sqrt(velX_*velX_ + velZ_*velZ_); }
+    void setPosition(const threepp::Vector3& p){ position_=p; }
+    void hardStop(){ velX_=0; velZ_=0; }
+    [[nodiscard]] const threepp::Vector3& position() const { return position_; }
+    [[nodiscard]] float speed() const { return std::sqrt(velX_*velX_ + velZ_*velZ_); }
 
 private:
     threepp::Vector3 position_{0,0,0};

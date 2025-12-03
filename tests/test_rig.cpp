@@ -18,6 +18,6 @@ TEST_CASE("findWheels finds four wheels") {
     }
 
     std::vector<Object3D*> out;
-    minbil::findWheels(root.get(), out);
+    MyCar::findWheels(root.get(), out);
     REQUIRE(out.size() == 4);
 }

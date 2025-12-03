@@ -4,8 +4,8 @@
 #include <memory>
 #include <vector>
 
-namespace minbil {
-
+namespace MyCar {
+    //Separates out nodes for the wheels
     inline void findWheels(threepp::Object3D* root, std::vector<threepp::Object3D*>& out){
         const char* names[]={"wheel_FL","wheel_FR","wheel_BL","wheel_BR"};
         root->traverse([&](threepp::Object3D& o){ for(auto n:names) if(o.name==n){ out.push_back(&o); break; }});

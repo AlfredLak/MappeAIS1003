@@ -4,15 +4,15 @@
 #include <vector>
 #include "BilSimulator/CollisionSink.hpp"
 
-namespace minbil {
+namespace MyCar {
 
     class Trees {
     public:
-        inline void setCollisionSink(CollisionSink* sink) { sink_ = sink; }
-        inline void add(std::shared_ptr<threepp::Object3D> t) { trees_.push_back(std::move(t)); }
+        void setCollisionSink(CollisionSink* sink) { sink_ = sink; }
+        void add(std::shared_ptr<threepp::Object3D> t) { trees_.push_back(std::move(t)); }
 
         // 2D circle collision against car position; forwards hit to sink.
-        inline void update(threepp::Object3D* car, float currentSpeed) {
+        void update(const threepp::Object3D* car, const float currentSpeed) const {
             if (!car) return;
             const auto p = car->position;
             for (auto& t : trees_) {
@@ -27,9 +27,9 @@ namespace minbil {
             }
         }
 
-        inline void setCollisionRadius(float r) { radius_ = r; }
-        inline float radius() const { return radius_; }
-        inline const std::vector<std::shared_ptr<threepp::Object3D>>& all() const { return trees_; }
+        void setCollisionRadius(float r) { radius_ = r; }
+        [[nodiscard]] float radius() const { return radius_; }
+        [[nodiscard]] const std::vector<std::shared_ptr<threepp::Object3D>>& all() const { return trees_; }
 
     private:
         std::vector<std::shared_ptr<threepp::Object3D>> trees_;

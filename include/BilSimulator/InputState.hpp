@@ -1,7 +1,7 @@
 #pragma once
 #include <threepp/threepp.hpp>
 
-namespace minbil {
+namespace MyCar {
 
     class InputState : public threepp::KeyListener {
     public:

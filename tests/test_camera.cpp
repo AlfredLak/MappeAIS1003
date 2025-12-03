@@ -1,7 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include "BilSimulator/CameraController.hpp"
 
-using namespace minbil;
+using namespace MyCar;
 
 TEST_CASE("CameraController cycles modes") {
     CameraController cc;

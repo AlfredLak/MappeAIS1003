@@ -2,7 +2,7 @@
 #include "BilSimulator/InputState.hpp"
 #include <threepp/threepp.hpp>
 
-using namespace minbil;
+using namespace MyCar;
 using namespace threepp;
 
 static KeyEvent makeKey(Key key) {

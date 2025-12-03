@@ -17,7 +17,7 @@
 #include "BilSimulator/VehicleFactory.hpp"
 
 using namespace threepp;
-using namespace minbil;
+using namespace MyCar;
 
 #ifndef ASSETS_DIR
 #  define ASSETS_DIR "./assets"
@@ -34,7 +34,7 @@ static std::string pathJoin(std::initializer_list<std::string> parts) {
     }
     return out;
 }
-
+// String variables storing the path to each sub-directory in assets
 static std::string model(const std::string& f)   { return pathJoin({ASSETS_DIR, "models",   f}); }
 static std::string texture(const std::string& f) { return pathJoin({ASSETS_DIR, "textures", f}); }
 static std::string uiTex(const std::string& f)   { return pathJoin({ASSETS_DIR, "ui",       f}); }
@@ -68,15 +68,15 @@ int main() {
     auto ground = Mesh::create(planeGeo, planeMat);
     scene.add(ground);
 
-    auto grid = GridHelper::create((int)kPlaneSize, 200, Color::black, Color::darkgray);
+    auto grid = GridHelper::create(static_cast<int>(kPlaneSize), 200, Color::black, Color::darkgray);
     grid->position.y = 0.01f;
     scene.add(grid);
 
     // ----- light -----
     scene.add(HemisphereLight::create(Color::white, Color::gray, 1.0f));
-    auto dir = DirectionalLight::create(Color::white, 0.8f);
-    dir->position.set(5, 10, 7);
-    scene.add(dir);
+    auto lightDirection = DirectionalLight::create(Color::white, 0.8f);
+    lightDirection->position.set(5, 10, 7);
+    scene.add(lightDirection);
 
     // ----- simple UI scene (menu/pause) -----
     Scene uiScene;
@@ -93,7 +93,7 @@ int main() {
     AssimpLoader loader;
 
     // ----- vehicle models -----
-    std::vector<std::string> carFiles = {
+    std::vector carFiles = {
         model("suv_model.glb"),
         model("sedan_model.glb"),
         model("tractor_model.glb")
@@ -105,12 +105,12 @@ int main() {
     // ----- power-ups -----
     PowerUpManager powerUps;
     {
-        std::vector<std::string> puFiles = {
+        std::vector puFiles = {
             model("muffin.glb"),   // Grow
             model("soda.glb"),     // Faster
             model("mushroom.glb")  // Shrink
         };
-        std::mt19937 rng((unsigned)std::chrono::steady_clock::now().time_since_epoch().count());
+        std::mt19937 rng(static_cast<unsigned>(std::chrono::steady_clock::now().time_since_epoch().count()));
         std::uniform_real_distribution<float> dxy(-(kPlaneSize/2.f - 50.f), (kPlaneSize/2.f - 50.f));
         std::uniform_int_distribution<int>   pick(0, 2);
         for (int i=0; i<120; ++i) {
@@ -129,7 +129,8 @@ int main() {
     // ----- trees -----
     Trees trees;
     {
-        std::mt19937 rng((unsigned)std::chrono::steady_clock::now().time_since_epoch().count());
+        //Randomly allocates trees across the map
+        std::mt19937 rng(static_cast<unsigned>(std::chrono::steady_clock::now().time_since_epoch().count()));
         std::uniform_real_distribution<float> dxy(-(kPlaneSize/2.f - 50.f), (kPlaneSize/2.f - 50.f));
         for (int i=0; i<150; ++i) {
             auto t = loader.load(model("tree_model.glb"));
@@ -157,7 +158,7 @@ int main() {
     }
 
     // trees -> Game collision callback (Game implements CollisionSink in your codebase)
-    trees.setCollisionSink(static_cast<CollisionSink*>(game.get()));
+    trees.setCollisionSink(game.get());
 
     // initial camera placement; runtime follow handled inside Game
     camThird(camera, rig.root->position, 0.f);
@@ -185,7 +186,7 @@ int main() {
         game->applyVehicleTuning(tune.accelF, tune.accelB, tune.maxF, tune.maxB);
 
         // reattach sink after recreating Game
-        trees.setCollisionSink(static_cast<CollisionSink*>(game.get()));
+        trees.setCollisionSink(game.get());
     };
 
     // ----- main loop -----

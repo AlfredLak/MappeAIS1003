@@ -9,7 +9,7 @@
 #include <threepp/threepp.hpp>
 
 using namespace threepp;
-using namespace minbil;
+using namespace MyCar;
 using Catch::Approx;
 
 TEST_CASE("PowerUps apply correct effects and deactivate") {
